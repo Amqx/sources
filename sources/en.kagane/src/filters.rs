@@ -47,13 +47,13 @@ pub fn build_search_body(
 			}
 			FilterValue::MultiSelect { id, included, .. } => match id.as_str() {
 				"content_rating" if !included.is_empty() => {
-					content_ratings = included.iter().cloned().collect();
+					content_ratings = included.to_vec();
 				}
 				"format" if !included.is_empty() => {
-					format_values = included.iter().cloned().collect();
+					format_values = included.to_vec();
 				}
 				"upload_status" if !included.is_empty() => {
-					status_values = included.iter().cloned().collect();
+					status_values = included.to_vec();
 				}
 				_ => {}
 			},

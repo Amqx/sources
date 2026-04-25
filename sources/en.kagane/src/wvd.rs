@@ -61,9 +61,8 @@ impl RngCore for XorShift64 {
 		}
 		if i < dest.len() {
 			let n = self.next_u64().to_le_bytes();
-			for j in 0..(dest.len() - i) {
-				dest[i + j] = n[j];
-			}
+			let rem = dest.len() - i;
+			dest[i..].copy_from_slice(&n[..rem]);
 		}
 	}
 

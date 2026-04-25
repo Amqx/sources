@@ -31,13 +31,12 @@ pub fn build_chapter_name(
 	let title = title.trim();
 	match mode {
 		"optional" => {
-			if title.is_empty() {
-				if let Some(ch) = chapter_no.filter(|s| !s.is_empty()) {
+			if title.is_empty()
+				&& let Some(ch) = chapter_no.filter(|s| !s.is_empty()) {
 					let mut s = String::new();
 					let _ = write!(s, "Ch.{ch}");
 					return s;
 				}
-			}
 			String::from(title)
 		}
 		"always" => match (chapter_no.filter(|s| !s.is_empty()), title.is_empty()) {
@@ -53,7 +52,7 @@ pub fn build_chapter_name(
 				s
 			}
 		},
-		"vol_chapter" | _ => {
+		_ => {
 			let mut num = String::new();
 			if let Some(v) = volume_no.filter(|s| !s.is_empty()) {
 				let _ = write!(num, "Vol.{v} ");

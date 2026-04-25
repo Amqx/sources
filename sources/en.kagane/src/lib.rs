@@ -42,15 +42,13 @@ fn get_integrity_token() -> Result<String> {
 		.and_then(|s| s.parse::<i64>().ok())
 		.unwrap_or(0);
 
-	if now < cached_exp {
-		if let Some(token) = defaults_get::<String>(INTEGRITY_TOKEN_KEY) {
-			if !token.is_empty() {
+	if now < cached_exp
+		&& let Some(token) = defaults_get::<String>(INTEGRITY_TOKEN_KEY)
+			&& !token.is_empty() {
 				return Ok(token);
 			}
-		}
-	}
 
-	let text = Request::post(&format!("{BASE_URL}/api/integrity"))?
+	let text = Request::post(format!("{BASE_URL}/api/integrity"))?
 		.header("Content-Type", "application/json")
 		.header("Origin", BASE_URL)
 		.header("Referer", &format!("{BASE_URL}/"))
@@ -131,16 +129,14 @@ impl Source for Kagane {
 
 		if needs_details {
 			let mut title = dto.title.trim().to_string();
-			if settings::get_show_edition() {
-				if let Some(ed) = dto.edition_info.as_deref().filter(|s| !s.is_empty()) {
+			if settings::get_show_edition()
+				&& let Some(ed) = dto.edition_info.as_deref().filter(|s| !s.is_empty()) {
 					let _ = write!(title, " ({ed})");
 				}
-			}
-			if settings::get_show_source() {
-				if let Some(src) = dto.source_id.as_deref().filter(|s| !s.is_empty()) {
+			if settings::get_show_source()
+				&& let Some(src) = dto.source_id.as_deref().filter(|s| !s.is_empty()) {
 					let _ = write!(title, " [{src}]");
 				}
-			}
 			manga.title = title;
 			manga.status = status_from_str(&dto.upload_status);
 
