@@ -16,4 +16,5 @@ templates/*/target
 .ropeproject
 /target
 
+icons.py
 *.wvd
