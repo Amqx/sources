@@ -65,6 +65,43 @@ fn get_integrity_token() -> Result<String> {
 
 struct Kagane;
 
+fn pages_from_challenge(
+	chapter_id: &str,
+	challenge_dto: ChallengeDto,
+	data_saver: bool,
+) -> Result<Vec<Page>> {
+	if challenge_dto.access_token.is_empty() || challenge_dto.cache_url.is_empty() {
+		return Err(AidokuError::message("Invalid chapter access data"));
+	}
+
+	let cache_url = challenge_dto.cache_url;
+	let access_token = challenge_dto.access_token;
+	let mut pages = challenge_dto.pages;
+	if pages.is_empty() {
+		return Err(AidokuError::message("No pages found for this chapter"));
+	}
+
+	pages.sort_by_key(|p| p.page_number);
+
+	pages
+		.into_iter()
+		.map(|page| {
+			if page.page_uuid.is_empty() {
+				return Err(AidokuError::message("Invalid chapter page data"));
+			}
+
+			let url = format!(
+				"{cache_url}/api/v2/books/file/{chapter_id}/{}?token={access_token}&is_datasaver={data_saver}",
+				page.page_uuid
+			);
+			Ok(Page {
+				content: PageContent::url(url),
+				..Default::default()
+			})
+		})
+		.collect()
+}
+
 impl Source for Kagane {
 	fn new() -> Self {
 		set_rate_limit(2, 1, TimeUnit::Seconds);
@@ -277,24 +314,7 @@ impl Source for Kagane {
 		let challenge_dto: ChallengeDto =
 			serde_json::from_str(&text).map_err(|e| AidokuError::JsonParseError(Rc::new(e)))?;
 
-		let cache_url = challenge_dto.cache_url;
-		let access_token = challenge_dto.access_token;
-		let mut pages = challenge_dto.pages;
-		pages.sort_by_key(|p| p.page_number);
-
-		Ok(pages
-			.into_iter()
-			.map(|page| {
-				let url = format!(
-					"{cache_url}/api/v2/books/file/{chapter_id}/{}?token={access_token}&is_datasaver={data_saver}",
-					page.page_uuid
-				);
-				Page {
-					content: PageContent::url(url),
-					..Default::default()
-				}
-			})
-			.collect())
+		pages_from_challenge(chapter_id, challenge_dto, data_saver)
 	}
 }
 
@@ -311,7 +331,80 @@ register_source!(Kagane);
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use aidoku::alloc::vec;
 	use aidoku_test::aidoku_test;
+
+	#[aidoku_test]
+	fn test_empty_challenge_pages_is_error() {
+		let result = pages_from_challenge(
+			"chapter-id",
+			ChallengeDto {
+				access_token: "tok123".into(),
+				cache_url: "https://akari.kagane.org".into(),
+				pages: Vec::new(),
+			},
+			false,
+		);
+
+		assert!(result.is_err());
+	}
+
+	#[aidoku_test]
+	fn test_challenge_pages_are_sorted_and_mapped() {
+		let pages = pages_from_challenge(
+			"chapter-id",
+			ChallengeDto {
+				access_token: "tok123".into(),
+				cache_url: "https://akari.kagane.org".into(),
+				pages: vec![
+					PageDto {
+						page_number: 2,
+						page_uuid: "uuid-2".into(),
+					},
+					PageDto {
+						page_number: 1,
+						page_uuid: "uuid-1".into(),
+					},
+				],
+			},
+			true,
+		)
+		.unwrap();
+
+		assert_eq!(pages.len(), 2);
+		assert_eq!(
+			pages[0].content,
+			PageContent::Url(
+				"https://akari.kagane.org/api/v2/books/file/chapter-id/uuid-1?token=tok123&is_datasaver=true".into(),
+				None
+			)
+		);
+		assert_eq!(
+			pages[1].content,
+			PageContent::Url(
+				"https://akari.kagane.org/api/v2/books/file/chapter-id/uuid-2?token=tok123&is_datasaver=true".into(),
+				None
+			)
+		);
+	}
+
+	#[aidoku_test]
+	fn test_challenge_page_with_empty_uuid_is_error() {
+		let result = pages_from_challenge(
+			"chapter-id",
+			ChallengeDto {
+				access_token: "tok123".into(),
+				cache_url: "https://akari.kagane.org".into(),
+				pages: vec![PageDto {
+					page_number: 1,
+					page_uuid: String::new(),
+				}],
+			},
+			false,
+		);
+
+		assert!(result.is_err());
+	}
 
 	#[aidoku_test]
 	fn test_page_list_requires_wvd_key() {
