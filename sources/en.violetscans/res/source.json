@@ -1,0 +1,10 @@
+{
+    "info": {
+        "id": "en.violetscans",
+        "name": "VioletScans",
+        "version": 1,
+        "url": "https://violetscans.com",
+        "contentRating": 0,
+        "languages": ["en"]
+    }
+}
