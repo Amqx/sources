@@ -5,6 +5,7 @@ use aidoku::{
 	alloc::{String, Vec, format, string::ToString, vec::Vec as AllocVec},
 	helpers::{string::StripPrefixOrSelf, uri::QueryParameters},
 	imports::{
+		error::AidokuError,
 		html::Element,
 		net::Request,
 		std::{parse_date, send_partial_result},
@@ -240,7 +241,11 @@ impl Source for VioletScans {
 
 			let mut tags: Vec<String> = details
 				.select(".mgen a, div.gnr a, .seriestugenre a")
-				.map(|els| els.filter_map(|el| el.text()).map(|s| s.trim().into()).collect())
+				.map(|els| {
+					els.filter_map(|el| el.text())
+						.map(|s| s.trim().into())
+						.collect()
+				})
 				.unwrap_or_default();
 
 			let series_type = imptdt_value(&details, "Type");
@@ -281,49 +286,47 @@ impl Source for VioletScans {
 		}
 
 		if needs_chapters {
-			manga.chapters = html
-				.select("#chapterlist li:not(:has(svg))")
-				.map(|els| {
-					els.filter_map(|el| {
-						let link = el.select_first("a")?;
-						let href = link.attr("abs:href")?;
-						if href.is_empty() || href.starts_with('#') {
-							return None;
-						}
-						let raw_title = el
-							.select_first(".chapternum")
-							.and_then(|e| e.text())
-							.or_else(|| link.text())
-							.unwrap_or_default();
-						let title = normalize_ws(&raw_title);
-						let chapter_number = find_first_f32(&title);
-						let date_uploaded = el
-							.select_first(".chapterdate")
-							.and_then(|e| e.text())
-							.and_then(|s| parse_date(s.trim(), "MMMM d, yyyy"));
-						let display_title = match chapter_number {
-							Some(n) => {
-								let int_form = format!("Chapter {}", n as i32);
-								let float_form = format!("Chapter {n}");
-								if title == int_form || title == float_form {
-									None
-								} else {
-									Some(title)
-								}
+			manga.chapters = html.select("#chapterlist li:not(:has(svg))").map(|els| {
+				els.filter_map(|el| {
+					let link = el.select_first("a")?;
+					let href = link.attr("abs:href")?;
+					if href.is_empty() || href.starts_with('#') {
+						return None;
+					}
+					let raw_title = el
+						.select_first(".chapternum")
+						.and_then(|e| e.text())
+						.or_else(|| link.text())
+						.unwrap_or_default();
+					let title = normalize_ws(&raw_title);
+					let chapter_number = find_first_f32(&title);
+					let date_uploaded = el
+						.select_first(".chapterdate")
+						.and_then(|e| e.text())
+						.and_then(|s| parse_date(s.trim(), "MMMM d, yyyy"));
+					let display_title = match chapter_number {
+						Some(n) => {
+							let int_form = format!("Chapter {}", n as i32);
+							let float_form = format!("Chapter {n}");
+							if title == int_form || title == float_form {
+								None
+							} else {
+								Some(title)
 							}
-							None => Some(title),
-						};
-						Some(Chapter {
-							key: key_from_url(&href),
-							title: display_title,
-							chapter_number,
-							date_uploaded,
-							url: Some(href),
-							..Default::default()
-						})
+						}
+						None => Some(title),
+					};
+					Some(Chapter {
+						key: key_from_url(&href),
+						title: display_title,
+						chapter_number,
+						date_uploaded,
+						url: Some(href),
+						..Default::default()
 					})
-					.collect()
-				});
+				})
+				.collect()
+			});
 		}
 
 		Ok(manga)
@@ -335,7 +338,7 @@ impl Source for VioletScans {
 
 		let images = extract_images(&body);
 		if images.is_empty() {
-			bail!("No pages found");
+			return Err(AidokuError::message("No pages found!"));
 		}
 
 		Ok(images
