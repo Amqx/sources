@@ -1,0 +1,12 @@
+{
+    "info": {
+        "id": "en.violetscans",
+        "name": "Violet Scans",
+        "altNames": ["Shojo Scans"],
+        "version": 1,
+        "urls": ["https://violetscans.com", "https://violetscans.org"],
+        "minAppVersion": "0.7.1",
+        "contentRating": 0,
+        "languages": ["en"]
+    }
+}
