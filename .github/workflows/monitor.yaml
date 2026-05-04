@@ -1,0 +1,168 @@
+name: Monitor upstream commits
+
+on:
+    schedule:
+        - cron: "*/30 * * * *" # Every 30 minutes
+    workflow_dispatch: # Manual trigger
+
+jobs:
+    check-commits:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Get latest HEAD hash
+              id: head
+              run: |
+                  HEAD_SHA=$(git ls-remote https://github.com/Aidoku-Community/sources.git HEAD | awk '{print $1}')
+                  echo "sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+                  echo "Current HEAD: $HEAD_SHA"
+
+            - name: Compare with stored hash
+              id: compare
+              run: |
+                  LAST_SHA="${{ vars.LAST_SEEN_SHA }}"
+                  HEAD_SHA="${{ steps.head.outputs.sha }}"
+                  echo "Last seen: $LAST_SHA"
+                  echo "Current HEAD: $HEAD_SHA"
+                  if [ "$LAST_SHA" = "$HEAD_SHA" ]; then
+                    echo "changed=false" >> "$GITHUB_OUTPUT"
+                  else
+                    echo "changed=true" >> "$GITHUB_OUTPUT"
+                  fi
+
+            - name: Checkout repo to get commit history
+              if: steps.compare.outputs.changed == 'true'
+              uses: actions/checkout@v4
+              with:
+                  repository: Aidoku-Community/sources
+                  fetch-depth: 0
+
+            - name: Gather commits and send Discord webhooks
+              if: steps.compare.outputs.changed == 'true'
+              env:
+                  DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+                  LAST_SHA: ${{ vars.LAST_SEEN_SHA }}
+                  HEAD_SHA: ${{ steps.head.outputs.sha }}
+              run: |
+                  # Build the commit range
+                  if [ -z "$LAST_SHA" ]; then
+                    echo "No previous SHA stored — using only the latest commit."
+                    RANGE="$HEAD_SHA~1..$HEAD_SHA"
+                  else
+                    RANGE="${LAST_SHA}..${HEAD_SHA}"
+                  fi
+
+                  COMMIT_SHAS=$(git rev-list --reverse "$RANGE" 2>/dev/null)
+
+                  if [ -z "$COMMIT_SHAS" ]; then
+                    echo "No new commits found in range."
+                    exit 0
+                  fi
+
+                  COMMIT_COUNT=$(echo "$COMMIT_SHAS" | wc -l)
+                  echo "Found $COMMIT_COUNT new commit(s)"
+
+                  # Send a summary embed first if multiple commits
+                  if [ "$COMMIT_COUNT" -gt 1 ]; then
+                    SUMMARY_PAYLOAD=$(cat <<EOFSUM
+                  {
+                    "content": "**${COMMIT_COUNT} new commits** pushed to [Aidoku Sources](https://github.com/Aidoku-Community/sources)"
+                  }
+                  EOFSUM
+                  )
+                    curl -s -H "Content-Type: application/json" -d "$SUMMARY_PAYLOAD" "$DISCORD_WEBHOOK_URL"
+                    sleep 1
+                  fi
+
+                  # Send one embed per commit
+                  for SHA in $COMMIT_SHAS; do
+                    MESSAGE=$(git log -1 --format='%s' "$SHA")
+                    BODY=$(git log -1 --format='%b' "$SHA")
+                    AUTHOR=$(git log -1 --format='%an' "$SHA")
+                    TIMESTAMP=$(git log -1 --format='%aI' "$SHA")
+                    SHORT_SHA=$(git rev-parse --short "$SHA")
+                    LINK="https://github.com/Aidoku-Community/sources/commit/${SHA}"
+
+                    # Stats
+                    FILES_CHANGED=$(git diff-tree --no-commit-id -r "$SHA" | wc -l)
+                    STAT_LINE=$(git diff-tree --no-commit-id --numstat -r "$SHA" | awk '
+                      { added += $1; removed += $2 }
+                      END { printf "%d insertions(+), %d deletions(-)", added, removed }
+                    ')
+
+                    # Truncate message for embed title (Discord limit 256 chars)
+                    TITLE=$(echo "$MESSAGE" | head -c 250)
+
+                    # Build description with body if present
+                    if [ -n "$BODY" ]; then
+                      # Truncate body to keep embed under limits
+                      TRUNCATED_BODY=$(echo "$BODY" | head -c 300)
+                      DESCRIPTION=$(printf '%s\n\n%s' "$TRUNCATED_BODY" "\`${SHORT_SHA}\` — ${FILES_CHANGED} file(s) changed, ${STAT_LINE}")
+                    else
+                      DESCRIPTION=$(printf '%s' "\`${SHORT_SHA}\` — ${FILES_CHANGED} file(s) changed, ${STAT_LINE}")
+                    fi
+
+                    # Escape JSON-unsafe characters
+                    json_escape() {
+                      python3 -c "import json,sys; print(json.dumps(sys.stdin.read().strip()))" <<< "$1"
+                    }
+
+                    TITLE_ESC=$(json_escape "$TITLE")
+                    DESC_ESC=$(json_escape "$DESCRIPTION")
+                    AUTHOR_ESC=$(json_escape "$AUTHOR")
+
+                    PAYLOAD=$(cat <<EOF
+                  {
+                    "embeds": [
+                      {
+                        "title": ${TITLE_ESC},
+                        "url": "${LINK}",
+                        "description": ${DESC_ESC},
+                        "color": 3447003,
+                        "author": {
+                          "name": ${AUTHOR_ESC}
+                        },
+                        "fields": [
+                          {
+                            "name": "Files Changed",
+                            "value": "${FILES_CHANGED}",
+                            "inline": true
+                          },
+                          {
+                            "name": "Changes",
+                            "value": "${STAT_LINE}",
+                            "inline": true
+                          }
+                        ],
+                        "timestamp": "${TIMESTAMP}"
+                      }
+                    ]
+                  }
+                  EOF
+                  )
+
+                    echo "Sending notification for commit $SHORT_SHA..."
+                    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+                      -H "Content-Type: application/json" \
+                      -d "$PAYLOAD" \
+                      "$DISCORD_WEBHOOK_URL")
+
+                    if [ "$HTTP_CODE" -ge 400 ]; then
+                      echo "::warning::Discord webhook returned HTTP $HTTP_CODE for commit $SHORT_SHA"
+                    fi
+
+                    # Rate-limit guard for Discord (max 30 req/min on webhooks)
+                    sleep 2
+                  done
+
+            - name: Update stored SHA
+              if: steps.compare.outputs.changed == 'true'
+              env:
+                  GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+              run: |
+                  gh api \
+                    --method PATCH \
+                    -H "Accept: application/vnd.github+json" \
+                    "/repos/${{ github.repository }}/actions/variables/LAST_SEEN_SHA" \
+                    -f name='LAST_SEEN_SHA' \
+                    -f value='${{ steps.head.outputs.sha }}'
