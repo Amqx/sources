@@ -1,0 +1,12 @@
+{
+	"info": {
+		"id": "en.mangakatana",
+		"name": "MangaKatana",
+		"version": 1,
+		"url": "https://mangakatana.com/",
+		"contentRating": 0,
+		"languages": [
+			"en"
+		]
+	}
+}
