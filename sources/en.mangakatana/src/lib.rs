@@ -136,7 +136,7 @@ fn build_search_url(query: Option<&str>, page: i32, filters: Vec<FilterValue>) -
 	let mut include_mode = String::from("and");
 	let mut order = String::from("latest");
 	let mut status = String::new();
-	let mut chapters = String::from("1");
+	let mut chapters: Option<String> = None;
 
 	for filter in filters {
 		match filter {
@@ -160,9 +160,9 @@ fn build_search_url(query: Option<&str>, page: i32, filters: Vec<FilterValue>) -
 			FilterValue::Text { id, value } if id == "chapters" => {
 				let value = value.trim();
 				chapters = match value {
-					"-1" => "e1".into(),
-					"" => "1".into(),
-					_ => value.into(),
+					"-1" => Some("e1".into()),
+					"" => None,
+					_ => Some(value.into()),
 				};
 			}
 			_ => {}
@@ -182,7 +182,9 @@ fn build_search_url(query: Option<&str>, page: i32, filters: Vec<FilterValue>) -
 	if !status.is_empty() {
 		qs.push("status", Some(&status));
 	}
-	qs.push("chapters", Some(&chapters));
+	if let Some(chapters) = &chapters {
+		qs.push("chapters", Some(chapters));
+	}
 
 	format!("{BASE_URL}/manga/page/{page}?{qs}")
 }
@@ -264,7 +266,20 @@ fn collect_texts(html: &Document, selector: &str) -> Option<Vec<String>> {
 	}
 }
 
-fn find_first_f32(s: &str) -> Option<f32> {
+fn parse_chapter_number(s: &str) -> Option<f32> {
+	let lower = s.to_ascii_lowercase();
+	for marker in ["chapter", "ch. ", "ch.", "ch "] {
+		if let Some(idx) = lower.find(marker)
+			&& let Some(value) = parse_first_f32(&s[idx + marker.len()..])
+		{
+			return Some(value);
+		}
+	}
+
+	parse_first_f32(s)
+}
+
+fn parse_first_f32(s: &str) -> Option<f32> {
 	let mut value = String::new();
 	let mut seen_digit = false;
 	let mut seen_dot = false;
@@ -451,7 +466,7 @@ impl Source for MangaKatana {
 					Some(Chapter {
 						key: path_key(&href),
 						title: Some(title.clone()),
-						chapter_number: find_first_f32(&title),
+						chapter_number: parse_chapter_number(&title),
 						date_uploaded,
 						url: Some(absolute_url(&href)),
 						..Default::default()
@@ -613,6 +628,30 @@ mod tests {
 			url,
 			"https://mangakatana.com/manga/page/3?filter=1&include=action_comedy&exclude=adult&include_mode=or&order=numc&status=2&chapters=e1"
 		);
+	}
+
+	#[aidoku_test]
+	fn browse_url_omits_chapters_when_chapter_filter_is_blank() {
+		let url = build_search_url(
+			None,
+			1,
+			vec![FilterValue::Text {
+				id: "chapters".into(),
+				value: "".into(),
+			}],
+		);
+
+		assert_eq!(
+			url,
+			"https://mangakatana.com/manga/page/1?filter=1&include_mode=and&order=latest"
+		);
+	}
+
+	#[aidoku_test]
+	fn chapter_number_prefers_chapter_marker_over_volume_number() {
+		assert_eq!(parse_chapter_number("Vol.5 Ch.12: The Turn"), Some(12.0));
+		assert_eq!(parse_chapter_number("Volume 2 Chapter 7.5"), Some(7.5));
+		assert_eq!(parse_chapter_number("Special 3"), Some(3.0));
 	}
 
 	#[aidoku_test]
