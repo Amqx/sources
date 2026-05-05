@@ -1,0 +1,68 @@
+name: Update converter sources
+
+on:
+    workflow_dispatch:
+    push:
+        branches:
+            - main
+        paths:
+            - "sources/**/res/source.json"
+            - ".github/workflows/scripts/tachiID.py"
+            - ".github/workflows/scripts/update_converter_sources.py"
+            - ".github/workflows/update-converter-sources.yaml"
+            - "pyproject.toml"
+            - "uv.lock"
+
+permissions:
+    contents: read
+
+concurrency:
+    group: ${{ github.workflow }}
+    cancel-in-progress: false
+
+jobs:
+    update-converter-sources:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout Aidoku sources
+              uses: actions/checkout@v6
+              with:
+                  path: aidoku-sources
+
+            - name: Checkout converter
+              uses: actions/checkout@v6
+              with:
+                  repository: Amqx/converter
+                  token: ${{ secrets.CONVERTER_REPO_PAT }}
+                  path: converter
+                  fetch-depth: 0
+
+            - name: Install uv
+              uses: astral-sh/setup-uv@v8.1.0
+              with:
+                  enable-cache: true
+                  python-version: "3.14"
+                  cache-dependency-glob: |
+                      aidoku-sources/pyproject.toml
+                      aidoku-sources/uv.lock
+
+            - name: Update converter sources.json
+              working-directory: aidoku-sources
+              run: |
+                  uv run --frozen python .github/workflows/scripts/update_converter_sources.py \
+                    --aidoku-root "$GITHUB_WORKSPACE/aidoku-sources" \
+                    --converter-sources-json "$GITHUB_WORKSPACE/converter/sources.json"
+
+            - name: Commit and push converter sources.json
+              working-directory: converter
+              run: |
+                  if git diff --quiet -- sources.json; then
+                    echo "No converter source updates."
+                    exit 0
+                  fi
+
+                  git config user.name "aidoku-sources"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                  git add sources.json
+                  git commit -m "chore: update source mappings"
+                  git push
