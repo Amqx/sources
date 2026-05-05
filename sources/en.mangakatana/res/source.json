@@ -1,12 +1,20 @@
 {
-	"info": {
-		"id": "en.mangakatana",
-		"name": "MangaKatana",
-		"version": 1,
-		"url": "https://mangakatana.com/",
-		"contentRating": 0,
-		"languages": [
-			"en"
-		]
-	}
+    "info": {
+        "id": "en.mangakatana",
+        "name": "MangaKatana",
+        "version": 1,
+        "url": "https://mangakatana.com",
+        "contentRating": 1,
+        "languages": ["en"]
+    },
+    "listings": [
+        {
+            "id": "latest",
+            "name": "Latest Updates"
+        },
+        {
+            "id": "popular",
+            "name": "Popular"
+        }
+    ]
 }

@@ -1,0 +1,16 @@
+[
+	{
+		"type": "group",
+		"title": "Reader",
+		"items": [
+			{
+				"type": "select",
+				"key": "serverPreference",
+				"title": "Server Preference",
+				"values": ["", "mk", "3"],
+				"titles": ["Server 1", "Server 2", "Server 3"],
+				"default": ""
+			}
+		]
+	}
+]
