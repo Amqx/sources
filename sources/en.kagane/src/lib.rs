@@ -23,8 +23,8 @@ mod wvd;
 use helpers::{build_chapter_name, parse_date, status_from_str};
 use models::*;
 
-const BASE_URL: &str = "https://kagane.org";
-const API_URL: &str = "https://yuzuki.kagane.org";
+const BASE_URL: &str = "https://kagane.to";
+const API_URL: &str = "https://yuzuki.kagane.to";
 
 const SOURCE_NUMBER_FORMATS: &[&str] = &[
 	"Dark Horse Comics",
