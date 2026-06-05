@@ -7,9 +7,9 @@ use aidoku::{
 };
 use base64::{Engine, engine::general_purpose::STANDARD};
 use core::sync::atomic::{AtomicU64, Ordering};
-use rsa::pss::SigningKey;
 use rsa::RsaPrivateKey;
 use rsa::pkcs8::DecodePrivateKey;
+use rsa::pss::SigningKey;
 use rsa::rand_core::{CryptoRng, RngCore};
 use rsa::signature::{RandomizedSigner, SignatureEncoding};
 use sha1::Sha1;
@@ -66,7 +66,10 @@ impl RngCore for XorShift64 {
 		}
 	}
 
-	fn try_fill_bytes(&mut self, dest: &mut [u8]) -> core::result::Result<(), rsa::rand_core::Error> {
+	fn try_fill_bytes(
+		&mut self,
+		dest: &mut [u8],
+	) -> core::result::Result<(), rsa::rand_core::Error> {
 		self.fill_bytes(dest);
 		Ok(())
 	}
@@ -88,7 +91,9 @@ pub fn parse_wvd(data: &[u8]) -> Result<WvdData> {
 		return Err(AidokuError::Message("Invalid WVD magic".into()));
 	}
 	if data[3] != 2 {
-		return Err(AidokuError::Message("Unsupported WVD version (expected 2)".into()));
+		return Err(AidokuError::Message(
+			"Unsupported WVD version (expected 2)".into(),
+		));
 	}
 
 	let device_type = data[4];
@@ -136,8 +141,7 @@ fn proto_write_varint_field(buf: &mut Vec<u8>, field: u32, value: u64) {
 }
 
 const SYSTEM_ID: [u8; 16] = [
-	0xED, 0xEF, 0x8B, 0xA9, 0x79, 0xD6, 0x2A, 0xCE, 0xA3, 0xC8, 0x27, 0xDC, 0xD5,
-	0x1D, 0x21, 0xED,
+	0xED, 0xEF, 0x8B, 0xA9, 0x79, 0xD6, 0x2A, 0xCE, 0xA3, 0xC8, 0x27, 0xDC, 0xD5, 0x1D, 0x21, 0xED,
 ];
 
 pub fn build_pssh(f: &[u8; 16]) -> Vec<u8> {
@@ -201,8 +205,8 @@ pub fn encode_signed_message(msg: &[u8], signature: &[u8]) -> Vec<u8> {
 
 fn wrap_pkcs1_in_pkcs8(pkcs1: &[u8]) -> Vec<u8> {
 	const HEADER: [u8; 26] = [
-		0x30, 0x82, 0x00, 0x00, 0x02, 0x01, 0x00, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86,
-		0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00, 0x04, 0x82, 0x00, 0x00,
+		0x30, 0x82, 0x00, 0x00, 0x02, 0x01, 0x00, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
+		0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00, 0x04, 0x82, 0x00, 0x00,
 	];
 	let total = 26 + pkcs1.len();
 	let mut out = Vec::with_capacity(total);

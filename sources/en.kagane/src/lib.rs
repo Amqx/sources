@@ -1,6 +1,8 @@
 #![no_std]
 
 use aidoku::{
+	Chapter, FilterValue, ImageRequestProvider, Manga, MangaPageResult, Page, PageContent,
+	PageContext, Result, Source,
 	alloc::{String, Vec, format, rc::Rc, string::ToString},
 	imports::{
 		defaults::{DefaultValue, defaults_get, defaults_set},
@@ -9,8 +11,6 @@ use aidoku::{
 		std::current_date,
 	},
 	prelude::*,
-	Chapter, FilterValue, ImageRequestProvider, Manga, MangaPageResult, Page, PageContent,
-	PageContext, Result, Source,
 };
 use core::fmt::Write;
 
@@ -44,9 +44,10 @@ fn get_integrity_token() -> Result<String> {
 
 	if now < cached_exp
 		&& let Some(token) = defaults_get::<String>(INTEGRITY_TOKEN_KEY)
-			&& !token.is_empty() {
-				return Ok(token);
-			}
+		&& !token.is_empty()
+	{
+		return Ok(token);
+	}
 
 	let text = Request::post(format!("{BASE_URL}/api/integrity"))?
 		.header("Content-Type", "application/json")
@@ -58,7 +59,10 @@ fn get_integrity_token() -> Result<String> {
 		serde_json::from_str(&text).map_err(|e| AidokuError::JsonParseError(Rc::new(e)))?;
 
 	defaults_set(INTEGRITY_TOKEN_KEY, DefaultValue::String(dto.token.clone()));
-	defaults_set(INTEGRITY_EXP_KEY, DefaultValue::String(format!("{}", dto.exp)));
+	defaults_set(
+		INTEGRITY_EXP_KEY,
+		DefaultValue::String(format!("{}", dto.exp)),
+	);
 
 	Ok(dto.token)
 }
@@ -78,7 +82,9 @@ fn pages_from_challenge(
 	let access_token = challenge_dto.access_token;
 	let mut pages = challenge_dto.pages;
 	if pages.is_empty() {
-		return Err(AidokuError::Message("No pages found for this chapter".into()));
+		return Err(AidokuError::Message(
+			"No pages found for this chapter".into(),
+		));
 	}
 
 	pages.sort_by_key(|p| p.page_number);
@@ -138,7 +144,9 @@ impl Source for Kagane {
 			.map(|book| Manga {
 				key: book.series_id.clone(),
 				title: book.title,
-				cover: book.cover_image_id.map(|id| format!("{API_URL}/api/v2/image/{id}")),
+				cover: book
+					.cover_image_id
+					.map(|id| format!("{API_URL}/api/v2/image/{id}")),
 				url: Some(format!("{BASE_URL}/series/{}", book.series_id)),
 				..Default::default()
 			})
@@ -167,13 +175,15 @@ impl Source for Kagane {
 		if needs_details {
 			let mut title = dto.title.trim().to_string();
 			if settings::get_show_edition()
-				&& let Some(ed) = dto.edition_info.as_deref().filter(|s| !s.is_empty()) {
-					let _ = write!(title, " ({ed})");
-				}
+				&& let Some(ed) = dto.edition_info.as_deref().filter(|s| !s.is_empty())
+			{
+				let _ = write!(title, " ({ed})");
+			}
 			if settings::get_show_source()
-				&& let Some(src) = dto.source_id.as_deref().filter(|s| !s.is_empty()) {
-					let _ = write!(title, " [{src}]");
-				}
+				&& let Some(src) = dto.source_id.as_deref().filter(|s| !s.is_empty())
+			{
+				let _ = write!(title, " [{src}]");
+			}
 			manga.title = title;
 			manga.status = status_from_str(&dto.upload_status);
 
@@ -259,7 +269,9 @@ impl Source for Kagane {
 						chapter_number: if use_source_number {
 							Some(book.sort_no)
 						} else {
-							book.chapter_no.as_deref().and_then(|ch| ch.parse::<f32>().ok())
+							book.chapter_no
+								.as_deref()
+								.and_then(|ch| ch.parse::<f32>().ok())
 						},
 						volume_number: book
 							.volume_no
@@ -287,7 +299,8 @@ impl Source for Kagane {
 		let wvd_key = settings::get_wvd_key();
 		if wvd_key.is_empty() {
 			return Err(AidokuError::Message(
-				"WVD key required to read chapters. Add your WVD file (base64) in source settings.".into(),
+				"WVD key required to read chapters. Add your WVD file (base64) in source settings."
+					.into(),
 			));
 		}
 
@@ -301,7 +314,8 @@ impl Source for Kagane {
 		let integrity_token = get_integrity_token()?;
 		let challenge = wvd::generate_challenge(&wvd_key, chapter_id)?;
 		let data_saver = settings::get_data_saver();
-		let challenge_url = format!("{API_URL}/api/v2/books/{chapter_id}?is_datasaver={data_saver}");
+		let challenge_url =
+			format!("{API_URL}/api/v2/books/{chapter_id}?is_datasaver={data_saver}");
 		let challenge_body = format!(r#"{{"challenge":"{challenge}"}}"#);
 
 		let text = Request::post(&challenge_url)?

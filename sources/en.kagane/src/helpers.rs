@@ -1,4 +1,4 @@
-use aidoku::{alloc::String, MangaStatus};
+use aidoku::{MangaStatus, alloc::String};
 use chrono::{DateTime, NaiveDateTime};
 use core::fmt::Write;
 
@@ -32,11 +32,12 @@ pub fn build_chapter_name(
 	match mode {
 		"optional" => {
 			if title.is_empty()
-				&& let Some(ch) = chapter_no.filter(|s| !s.is_empty()) {
-					let mut s = String::new();
-					let _ = write!(s, "Ch.{ch}");
-					return s;
-				}
+				&& let Some(ch) = chapter_no.filter(|s| !s.is_empty())
+			{
+				let mut s = String::new();
+				let _ = write!(s, "Ch.{ch}");
+				return s;
+			}
 			String::from(title)
 		}
 		"always" => match (chapter_no.filter(|s| !s.is_empty()), title.is_empty()) {
