@@ -1,5 +1,5 @@
 use aidoku::alloc::{String, Vec};
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 
 #[derive(Deserialize)]
 pub struct SearchDto {
@@ -71,7 +71,6 @@ pub struct GroupDto {
 	pub title: String,
 }
 
-#[derive(Deserialize)]
 pub struct ChallengeDto {
 	pub access_token: String,
 	pub cache_url: String,
@@ -79,8 +78,45 @@ pub struct ChallengeDto {
 }
 
 #[derive(Deserialize)]
+struct ChallengeRawDto {
+	pub access_token: String,
+	pub cache_url: String,
+	#[serde(default)]
+	pub pages: Vec<PageDto>,
+	pub manifest: Option<ChallengeManifestDto>,
+}
+
+#[derive(Deserialize)]
+struct ChallengeManifestDto {
+	#[serde(default)]
+	pub pages: Vec<PageDto>,
+}
+
+impl<'de> Deserialize<'de> for ChallengeDto {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+	where
+		D: Deserializer<'de>,
+	{
+		let raw = ChallengeRawDto::deserialize(deserializer)?;
+		let pages = if raw.pages.is_empty() {
+			raw.manifest.map(|m| m.pages).unwrap_or_default()
+		} else {
+			raw.pages
+		};
+
+		Ok(Self {
+			access_token: raw.access_token,
+			cache_url: raw.cache_url,
+			pages,
+		})
+	}
+}
+
+#[derive(Deserialize)]
 pub struct PageDto {
+	#[serde(alias = "page_no")]
 	pub page_number: i32,
+	#[serde(alias = "page_id")]
 	pub page_uuid: String,
 }
 
@@ -157,6 +193,26 @@ mod tests {
 		assert_eq!(dto.access_token, "tok123");
 		assert_eq!(dto.pages.len(), 2);
 		assert_eq!(dto.pages[0].page_uuid, "uuid-1");
+	}
+
+	#[aidoku_test]
+	fn test_challenge_dto_parse_manifest_pages() {
+		let json = r#"{
+            "access_token": "tok123",
+            "cache_url": "https://kstatic.to",
+            "manifest": {
+                "pages": [
+                    {"page_id": "uuid-1", "page_no": 1, "ext": "jxl", "height": 4267, "width": 1280},
+                    {"page_id": "uuid-2", "page_no": 2, "ext": "jxl", "height": 4267, "width": 1280}
+                ],
+                "version": 1
+            }
+        }"#;
+		let dto: ChallengeDto = serde_json::from_str(json).unwrap();
+		assert_eq!(dto.access_token, "tok123");
+		assert_eq!(dto.pages.len(), 2);
+		assert_eq!(dto.pages[0].page_uuid, "uuid-1");
+		assert_eq!(dto.pages[0].page_number, 1);
 	}
 
 	#[aidoku_test]

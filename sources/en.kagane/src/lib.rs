@@ -36,7 +36,29 @@ const SOURCE_NUMBER_FORMATS: &[&str] = &[
 const INTEGRITY_TOKEN_KEY: &str = "kagane_integrity_token";
 const INTEGRITY_EXP_KEY: &str = "kagane_integrity_exp";
 
+pub struct ExitAnnouncer(&'static str);
+impl ExitAnnouncer {
+	pub fn new(s: &'static str) -> Self {
+		println!("enter {}", s);
+		Self(s)
+	}
+}
+impl Drop for ExitAnnouncer {
+	fn drop(&mut self) {
+		println!("exit {}", self.0);
+	}
+}
+
+#[macro_export]
+macro_rules! trace_fn {
+	($name:ident) => {
+		let _trace = ExitAnnouncer::new(stringify!($name));
+	};
+}
+
 fn get_integrity_token() -> Result<String> {
+	trace_fn!(get_integrity_token);
+
 	let now = current_date();
 	let cached_exp = defaults_get::<String>(INTEGRITY_EXP_KEY)
 		.and_then(|s| s.parse::<i64>().ok())
@@ -55,8 +77,11 @@ fn get_integrity_token() -> Result<String> {
 		.header("Referer", &format!("{BASE_URL}/"))
 		.body("{}")
 		.string()?;
-	let dto: IntegrityDto =
-		serde_json::from_str(&text).map_err(|e| AidokuError::JsonParseError(Rc::new(e)))?;
+	let dto: IntegrityDto = serde_json::from_str(&text).map_err(|e| {
+		println!("integritydto failed to parse: {}", e);
+		println!("raw (len: {}): {}", text.len(), text);
+		AidokuError::JsonParseError(Rc::new(e))
+	})?;
 
 	defaults_set(INTEGRITY_TOKEN_KEY, DefaultValue::String(dto.token.clone()));
 	defaults_set(
@@ -74,6 +99,8 @@ fn pages_from_challenge(
 	challenge_dto: ChallengeDto,
 	data_saver: bool,
 ) -> Result<Vec<Page>> {
+	trace_fn!(pages_from_challenge);
+
 	if challenge_dto.access_token.is_empty() || challenge_dto.cache_url.is_empty() {
 		return Err(AidokuError::Message("Invalid chapter access data".into()));
 	}
@@ -110,6 +137,8 @@ fn pages_from_challenge(
 
 impl Source for Kagane {
 	fn new() -> Self {
+		trace_fn!(new);
+
 		set_rate_limit(2, 1, TimeUnit::Seconds);
 		Self
 	}
@@ -120,6 +149,8 @@ impl Source for Kagane {
 		page: i32,
 		filter_values: Vec<FilterValue>,
 	) -> Result<MangaPageResult> {
+		trace_fn!(get_search_manga_list);
+
 		let default_ratings = settings::get_default_content_ratings();
 		let (body, sort_param) =
 			filters::build_search_body(query.as_deref(), &filter_values, &default_ratings);
@@ -164,6 +195,8 @@ impl Source for Kagane {
 		needs_details: bool,
 		needs_chapters: bool,
 	) -> Result<Manga> {
+		trace_fn!(get_manga_update);
+
 		let url = format!("{API_URL}/api/v2/series/{}", manga.key);
 		let text = Request::get(&url)?
 			.header("Origin", BASE_URL)
@@ -296,6 +329,8 @@ impl Source for Kagane {
 	}
 
 	fn get_page_list(&self, _manga: Manga, chapter: Chapter) -> Result<Vec<Page>> {
+		trace_fn!(get_page_list);
+
 		let wvd_key = settings::get_wvd_key();
 		if wvd_key.is_empty() {
 			return Err(AidokuError::Message(
@@ -325,8 +360,12 @@ impl Source for Kagane {
 			.header("x-integrity-token", &integrity_token)
 			.body(challenge_body)
 			.string()?;
-		let challenge_dto: ChallengeDto =
-			serde_json::from_str(&text).map_err(|e| AidokuError::JsonParseError(Rc::new(e)))?;
+		let challenge_dto: ChallengeDto = serde_json::from_str(&text).map_err(|e| {
+			println!("failed to parse challengedto: {}", e);
+			println!("raw response (len: {}): {:?}", text.len(), text);
+
+			AidokuError::JsonParseError(Rc::new(e))
+		})?;
 
 		pages_from_challenge(chapter_id, challenge_dto, data_saver)
 	}
@@ -334,13 +373,17 @@ impl Source for Kagane {
 
 impl ImageRequestProvider for Kagane {
 	fn get_image_request(&self, url: String, _context: Option<PageContext>) -> Result<Request> {
+		trace_fn!(get_image_request);
+		
+		todo!("figure out why this isn't working");
+
 		Ok(Request::get(&url)?
 			.header("Origin", BASE_URL)
 			.header("Referer", &format!("{BASE_URL}/")))
 	}
 }
 
-register_source!(Kagane);
+register_source!(Kagane, ImageRequestProvider);
 
 #[cfg(test)]
 mod tests {
