@@ -71,14 +71,14 @@ fn pages_from_challenge(
 	data_saver: bool,
 ) -> Result<Vec<Page>> {
 	if challenge_dto.access_token.is_empty() || challenge_dto.cache_url.is_empty() {
-		return Err(AidokuError::message("Invalid chapter access data"));
+		return Err(AidokuError::Message("Invalid chapter access data".into()));
 	}
 
 	let cache_url = challenge_dto.cache_url;
 	let access_token = challenge_dto.access_token;
 	let mut pages = challenge_dto.pages;
 	if pages.is_empty() {
-		return Err(AidokuError::message("No pages found for this chapter"));
+		return Err(AidokuError::Message("No pages found for this chapter".into()));
 	}
 
 	pages.sort_by_key(|p| p.page_number);
@@ -87,7 +87,7 @@ fn pages_from_challenge(
 		.into_iter()
 		.map(|page| {
 			if page.page_uuid.is_empty() {
-				return Err(AidokuError::message("Invalid chapter page data"));
+				return Err(AidokuError::Message("Invalid chapter page data".into()));
 			}
 
 			let url = format!(
@@ -286,8 +286,8 @@ impl Source for Kagane {
 	fn get_page_list(&self, _manga: Manga, chapter: Chapter) -> Result<Vec<Page>> {
 		let wvd_key = settings::get_wvd_key();
 		if wvd_key.is_empty() {
-			return Err(AidokuError::message(
-				"WVD key required to read chapters. Add your WVD file (base64) in source settings.",
+			return Err(AidokuError::Message(
+				"WVD key required to read chapters. Add your WVD file (base64) in source settings.".into(),
 			));
 		}
 
@@ -296,7 +296,7 @@ impl Source for Kagane {
 			.rsplit('/')
 			.next()
 			.filter(|s| !s.is_empty())
-			.ok_or_else(|| AidokuError::message("Invalid chapter key format"))?;
+			.ok_or_else(|| AidokuError::Message("Invalid chapter key format".into()))?;
 
 		let integrity_token = get_integrity_token()?;
 		let challenge = wvd::generate_challenge(&wvd_key, chapter_id)?;

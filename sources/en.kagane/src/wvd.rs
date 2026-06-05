@@ -82,27 +82,27 @@ pub struct WvdData {
 
 pub fn parse_wvd(data: &[u8]) -> Result<WvdData> {
 	if data.len() < 9 {
-		return Err(AidokuError::message("WVD too short"));
+		return Err(AidokuError::Message("WVD too short".into()));
 	}
 	if &data[0..3] != b"WVD" {
-		return Err(AidokuError::message("Invalid WVD magic"));
+		return Err(AidokuError::Message("Invalid WVD magic".into()));
 	}
 	if data[3] != 2 {
-		return Err(AidokuError::message("Unsupported WVD version (expected 2)"));
+		return Err(AidokuError::Message("Unsupported WVD version (expected 2)".into()));
 	}
 
 	let device_type = data[4];
 	let pk_len = u16::from_be_bytes([data[7], data[8]]) as usize;
 	let pk_end = 9 + pk_len;
 	if data.len() < pk_end + 2 {
-		return Err(AidokuError::message("WVD truncated (private key)"));
+		return Err(AidokuError::Message("WVD truncated (private key)".into()));
 	}
 
 	let private_key_der = data[9..pk_end].to_vec();
 	let ci_len = u16::from_be_bytes([data[pk_end], data[pk_end + 1]]) as usize;
 	let ci_start = pk_end + 2;
 	if data.len() < ci_start + ci_len {
-		return Err(AidokuError::message("WVD truncated (client_id)"));
+		return Err(AidokuError::Message("WVD truncated (client_id)".into()));
 	}
 
 	let client_id = data[ci_start..ci_start + ci_len].to_vec();
@@ -157,11 +157,11 @@ pub fn build_pssh(f: &[u8; 16]) -> Vec<u8> {
 
 pub fn extract_init_data(pssh: &[u8]) -> Result<Vec<u8>> {
 	if pssh.len() < 32 {
-		return Err(AidokuError::message("PSSH too short"));
+		return Err(AidokuError::Message("PSSH too short".into()));
 	}
 	let data_size = u32::from_be_bytes([pssh[28], pssh[29], pssh[30], pssh[31]]) as usize;
 	if pssh.len() < 32 + data_size {
-		return Err(AidokuError::message("PSSH data truncated"));
+		return Err(AidokuError::Message("PSSH data truncated".into()));
 	}
 	Ok(pssh[32..32 + data_size].to_vec())
 }
@@ -226,7 +226,7 @@ pub fn parse_private_key(der: &[u8]) -> Result<RsaPrivateKey> {
 
 	let pkcs8 = wrap_pkcs1_in_pkcs8(der);
 	RsaPrivateKey::from_pkcs8_der(&pkcs8)
-		.map_err(|_| AidokuError::message("Failed to parse RSA private key from WVD"))
+		.map_err(|_| AidokuError::Message("Failed to parse RSA private key from WVD".into()))
 }
 
 fn to_hex_upper(bytes: &[u8]) -> String {
@@ -241,14 +241,14 @@ fn to_hex_upper(bytes: &[u8]) -> String {
 
 pub fn generate_challenge(wvd_base64: &str, chapter_id: &str) -> Result<String> {
 	if wvd_base64.is_empty() {
-		return Err(AidokuError::message(
-			"No WVD key configured. Add your WVD file (base64) in source settings.",
+		return Err(AidokuError::Message(
+			"No WVD key configured. Add your WVD file (base64) in source settings.".into(),
 		));
 	}
 
 	let wvd_bytes = STANDARD
 		.decode(wvd_base64)
-		.map_err(|_| AidokuError::message("Invalid WVD base64 encoding"))?;
+		.map_err(|_| AidokuError::Message("Invalid WVD base64 encoding".into()))?;
 	let wvd = parse_wvd(&wvd_bytes)?;
 
 	let mut hasher = Sha256::new();
@@ -257,7 +257,7 @@ pub fn generate_challenge(wvd_base64: &str, chapter_id: &str) -> Result<String> 
 	let hash = hasher.finalize();
 	let f: [u8; 16] = hash[..16]
 		.try_into()
-		.map_err(|_| AidokuError::message("SHA256 slice error"))?;
+		.map_err(|_| AidokuError::Message("SHA256 slice error".into()))?;
 
 	let pssh = build_pssh(&f);
 	let init_data = extract_init_data(&pssh)?;
