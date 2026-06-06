@@ -118,6 +118,7 @@ pub struct PageDto {
 	pub page_number: i32,
 	#[serde(alias = "page_id")]
 	pub page_uuid: String,
+	pub ext: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -147,7 +148,7 @@ mod tests {
 		let dto: SearchDto = serde_json::from_str(json).unwrap();
 		assert_eq!(dto.content[0].series_id, "abc-123");
 		assert_eq!(dto.content[0].title, "Test Manga");
-		assert_eq!(dto.last, false);
+		assert!(!dto.last);
 	}
 
 	#[aidoku_test]
@@ -193,6 +194,7 @@ mod tests {
 		assert_eq!(dto.access_token, "tok123");
 		assert_eq!(dto.pages.len(), 2);
 		assert_eq!(dto.pages[0].page_uuid, "uuid-1");
+		assert_eq!(dto.pages[0].ext, None);
 	}
 
 	#[aidoku_test]
@@ -213,6 +215,7 @@ mod tests {
 		assert_eq!(dto.pages.len(), 2);
 		assert_eq!(dto.pages[0].page_uuid, "uuid-1");
 		assert_eq!(dto.pages[0].page_number, 1);
+		assert_eq!(dto.pages[0].ext.as_deref(), Some("jxl"));
 	}
 
 	#[aidoku_test]

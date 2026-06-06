@@ -1,19 +1,6 @@
 [
     {
         "type": "group",
-        "title": "Access",
-        "footer": "A WVD (Widevine Device) file is required to read chapters. Paste the file contents (no newlines) encoded as base64.",
-        "items": [
-            {
-                "type": "text",
-                "key": "wvdKey",
-                "title": "WVD File (base64)",
-                "placeholder": "Paste your WVD base64 here"
-            }
-        ]
-    },
-    {
-        "type": "group",
         "title": "Reading",
         "items": [
             {

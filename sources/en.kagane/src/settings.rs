@@ -1,10 +1,6 @@
 use aidoku::alloc::{String, Vec};
 use aidoku::imports::defaults::defaults_get;
 
-pub fn get_wvd_key() -> String {
-	defaults_get::<String>("wvdKey").unwrap_or_default()
-}
-
 pub fn get_data_saver() -> bool {
 	defaults_get::<bool>("dataSaver").unwrap_or(false)
 }

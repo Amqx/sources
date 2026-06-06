@@ -18,7 +18,6 @@ mod filters;
 mod helpers;
 mod models;
 mod settings;
-mod wvd;
 
 use helpers::{build_chapter_name, parse_date, status_from_str};
 use models::*;
@@ -122,10 +121,15 @@ fn pages_from_challenge(
 			if page.page_uuid.is_empty() {
 				return Err(AidokuError::Message("Invalid chapter page data".into()));
 			}
+			let ext = page
+				.ext
+				.as_deref()
+				.filter(|ext| !ext.is_empty())
+				.unwrap_or("jxl");
 
 			let url = format!(
-				"{cache_url}/api/v2/books/file/{chapter_id}/{}?token={access_token}&is_datasaver={data_saver}",
-				page.page_uuid
+				"{cache_url}/api/v2/books/page/{chapter_id}/{}.{ext}?token={access_token}&is_datasaver={data_saver}",
+				page.page_uuid,
 			);
 			Ok(Page {
 				content: PageContent::url(url),
@@ -331,14 +335,6 @@ impl Source for Kagane {
 	fn get_page_list(&self, _manga: Manga, chapter: Chapter) -> Result<Vec<Page>> {
 		trace_fn!(get_page_list);
 
-		let wvd_key = settings::get_wvd_key();
-		if wvd_key.is_empty() {
-			return Err(AidokuError::Message(
-				"WVD key required to read chapters. Add your WVD file (base64) in source settings."
-					.into(),
-			));
-		}
-
 		let chapter_id = chapter
 			.key
 			.rsplit('/')
@@ -347,18 +343,16 @@ impl Source for Kagane {
 			.ok_or_else(|| AidokuError::Message("Invalid chapter key format".into()))?;
 
 		let integrity_token = get_integrity_token()?;
-		let challenge = wvd::generate_challenge(&wvd_key, chapter_id)?;
 		let data_saver = settings::get_data_saver();
 		let challenge_url =
 			format!("{API_URL}/api/v2/books/{chapter_id}?is_datasaver={data_saver}");
-		let challenge_body = format!(r#"{{"challenge":"{challenge}"}}"#);
 
 		let text = Request::post(&challenge_url)?
 			.header("Content-Type", "application/json")
 			.header("Origin", BASE_URL)
 			.header("Referer", &format!("{BASE_URL}/"))
 			.header("x-integrity-token", &integrity_token)
-			.body(challenge_body)
+			.body("{}")
 			.string()?;
 		let challenge_dto: ChallengeDto = serde_json::from_str(&text).map_err(|e| {
 			println!("failed to parse challengedto: {}", e);
@@ -374,8 +368,6 @@ impl Source for Kagane {
 impl ImageRequestProvider for Kagane {
 	fn get_image_request(&self, url: String, _context: Option<PageContext>) -> Result<Request> {
 		trace_fn!(get_image_request);
-		
-		todo!("figure out why this isn't working");
 
 		Ok(Request::get(&url)?
 			.header("Origin", BASE_URL)
@@ -408,38 +400,33 @@ mod tests {
 
 	#[aidoku_test]
 	fn test_challenge_pages_are_sorted_and_mapped() {
-		let pages = pages_from_challenge(
-			"chapter-id",
-			ChallengeDto {
-				access_token: "tok123".into(),
-				cache_url: "https://akari.kagane.org".into(),
-				pages: vec![
-					PageDto {
-						page_number: 2,
-						page_uuid: "uuid-2".into(),
-					},
-					PageDto {
-						page_number: 1,
-						page_uuid: "uuid-1".into(),
-					},
-				],
-			},
-			true,
+		let dto: ChallengeDto = serde_json::from_str(
+			r#"{
+				"access_token": "tok123",
+				"cache_url": "https://kstatic.to",
+				"manifest": {
+					"pages": [
+						{"page_id": "uuid-2", "page_no": 2, "ext": "webp"},
+						{"page_id": "uuid-1", "page_no": 1, "ext": "jxl"}
+					]
+				}
+			}"#,
 		)
 		.unwrap();
+		let pages = pages_from_challenge("chapter-id", dto, true).unwrap();
 
 		assert_eq!(pages.len(), 2);
 		assert_eq!(
 			pages[0].content,
 			PageContent::Url(
-				"https://akari.kagane.org/api/v2/books/file/chapter-id/uuid-1?token=tok123&is_datasaver=true".into(),
+				"https://kstatic.to/api/v2/books/page/chapter-id/uuid-1.jxl?token=tok123&is_datasaver=true".into(),
 				None
 			)
 		);
 		assert_eq!(
 			pages[1].content,
 			PageContent::Url(
-				"https://akari.kagane.org/api/v2/books/file/chapter-id/uuid-2?token=tok123&is_datasaver=true".into(),
+				"https://kstatic.to/api/v2/books/page/chapter-id/uuid-2.webp?token=tok123&is_datasaver=true".into(),
 				None
 			)
 		);
@@ -455,6 +442,7 @@ mod tests {
 				pages: vec![PageDto {
 					page_number: 1,
 					page_uuid: String::new(),
+					ext: None,
 				}],
 			},
 			false,
@@ -464,15 +452,13 @@ mod tests {
 	}
 
 	#[aidoku_test]
-	fn test_page_list_requires_wvd_key() {
+	fn test_image_request_is_constructed() {
 		let source = Kagane::new();
-		let result = source.get_page_list(
-			Manga::default(),
-			Chapter {
-				key: "/series/series-id/reader/chapter-id".into(),
-				..Default::default()
-			},
+		let result = source.get_image_request(
+			"https://kstatic.to/api/v2/books/page/chapter-id/page-id.jxl?token=tok123&is_datasaver=false"
+				.into(),
+			None,
 		);
-		assert!(result.is_err());
+		assert!(result.is_ok());
 	}
 }
