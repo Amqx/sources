@@ -1,6 +1,8 @@
 #![no_std]
 
 use aidoku::{
+	Chapter, FilterValue, ImageRequestProvider, Manga, MangaPageResult, Page, PageContent,
+	PageContext, Result, Source,
 	alloc::{String, Vec, format, rc::Rc, string::ToString},
 	imports::{
 		defaults::{DefaultValue, defaults_get, defaults_set},
@@ -9,8 +11,6 @@ use aidoku::{
 		std::current_date,
 	},
 	prelude::*,
-	Chapter, FilterValue, ImageRequestProvider, Manga, MangaPageResult, Page, PageContent,
-	PageContext, Result, Source,
 };
 use core::fmt::Write;
 
@@ -18,13 +18,12 @@ mod filters;
 mod helpers;
 mod models;
 mod settings;
-mod wvd;
 
 use helpers::{build_chapter_name, parse_date, status_from_str};
 use models::*;
 
-const BASE_URL: &str = "https://kagane.org";
-const API_URL: &str = "https://yuzuki.kagane.org";
+const BASE_URL: &str = "https://kagane.to";
+const API_URL: &str = "https://yuzuki.kagane.to";
 
 const SOURCE_NUMBER_FORMATS: &[&str] = &[
 	"Dark Horse Comics",
@@ -44,9 +43,10 @@ fn get_integrity_token() -> Result<String> {
 
 	if now < cached_exp
 		&& let Some(token) = defaults_get::<String>(INTEGRITY_TOKEN_KEY)
-			&& !token.is_empty() {
-				return Ok(token);
-			}
+		&& !token.is_empty()
+	{
+		return Ok(token);
+	}
 
 	let text = Request::post(format!("{BASE_URL}/api/integrity"))?
 		.header("Content-Type", "application/json")
@@ -54,11 +54,17 @@ fn get_integrity_token() -> Result<String> {
 		.header("Referer", &format!("{BASE_URL}/"))
 		.body("{}")
 		.string()?;
-	let dto: IntegrityDto =
-		serde_json::from_str(&text).map_err(|e| AidokuError::JsonParseError(Rc::new(e)))?;
+	let dto: IntegrityDto = serde_json::from_str(&text).map_err(|e| {
+		println!("integritydto failed to parse: {}", e);
+		println!("raw (len: {}): {}", text.len(), text);
+		AidokuError::JsonParseError(Rc::new(e))
+	})?;
 
 	defaults_set(INTEGRITY_TOKEN_KEY, DefaultValue::String(dto.token.clone()));
-	defaults_set(INTEGRITY_EXP_KEY, DefaultValue::String(format!("{}", dto.exp)));
+	defaults_set(
+		INTEGRITY_EXP_KEY,
+		DefaultValue::String(format!("{}", dto.exp)),
+	);
 
 	Ok(dto.token)
 }
@@ -71,14 +77,16 @@ fn pages_from_challenge(
 	data_saver: bool,
 ) -> Result<Vec<Page>> {
 	if challenge_dto.access_token.is_empty() || challenge_dto.cache_url.is_empty() {
-		return Err(AidokuError::message("Invalid chapter access data"));
+		return Err(AidokuError::Message("Invalid chapter access data".into()));
 	}
 
 	let cache_url = challenge_dto.cache_url;
 	let access_token = challenge_dto.access_token;
 	let mut pages = challenge_dto.pages;
 	if pages.is_empty() {
-		return Err(AidokuError::message("No pages found for this chapter"));
+		return Err(AidokuError::Message(
+			"No pages found for this chapter".into(),
+		));
 	}
 
 	pages.sort_by_key(|p| p.page_number);
@@ -87,12 +95,17 @@ fn pages_from_challenge(
 		.into_iter()
 		.map(|page| {
 			if page.page_uuid.is_empty() {
-				return Err(AidokuError::message("Invalid chapter page data"));
+				return Err(AidokuError::Message("Invalid chapter page data".into()));
 			}
+			let ext = page
+				.ext
+				.as_deref()
+				.filter(|ext| !ext.is_empty())
+				.unwrap_or("jxl");
 
 			let url = format!(
-				"{cache_url}/api/v2/books/file/{chapter_id}/{}?token={access_token}&is_datasaver={data_saver}",
-				page.page_uuid
+				"{cache_url}/api/v2/books/page/{chapter_id}/{}.{ext}?token={access_token}&is_datasaver={data_saver}",
+				page.page_uuid,
 			);
 			Ok(Page {
 				content: PageContent::url(url),
@@ -138,7 +151,9 @@ impl Source for Kagane {
 			.map(|book| Manga {
 				key: book.series_id.clone(),
 				title: book.title,
-				cover: book.cover_image_id.map(|id| format!("{API_URL}/api/v2/image/{id}")),
+				cover: book
+					.cover_image_id
+					.map(|id| format!("{API_URL}/api/v2/image/{id}")),
 				url: Some(format!("{BASE_URL}/series/{}", book.series_id)),
 				..Default::default()
 			})
@@ -167,13 +182,15 @@ impl Source for Kagane {
 		if needs_details {
 			let mut title = dto.title.trim().to_string();
 			if settings::get_show_edition()
-				&& let Some(ed) = dto.edition_info.as_deref().filter(|s| !s.is_empty()) {
-					let _ = write!(title, " ({ed})");
-				}
+				&& let Some(ed) = dto.edition_info.as_deref().filter(|s| !s.is_empty())
+			{
+				let _ = write!(title, " ({ed})");
+			}
 			if settings::get_show_source()
-				&& let Some(src) = dto.source_id.as_deref().filter(|s| !s.is_empty()) {
-					let _ = write!(title, " [{src}]");
-				}
+				&& let Some(src) = dto.source_id.as_deref().filter(|s| !s.is_empty())
+			{
+				let _ = write!(title, " [{src}]");
+			}
 			manga.title = title;
 			manga.status = status_from_str(&dto.upload_status);
 
@@ -259,7 +276,9 @@ impl Source for Kagane {
 						chapter_number: if use_source_number {
 							Some(book.sort_no)
 						} else {
-							book.chapter_no.as_deref().and_then(|ch| ch.parse::<f32>().ok())
+							book.chapter_no
+								.as_deref()
+								.and_then(|ch| ch.parse::<f32>().ok())
 						},
 						volume_number: book
 							.volume_no
@@ -284,35 +303,31 @@ impl Source for Kagane {
 	}
 
 	fn get_page_list(&self, _manga: Manga, chapter: Chapter) -> Result<Vec<Page>> {
-		let wvd_key = settings::get_wvd_key();
-		if wvd_key.is_empty() {
-			return Err(AidokuError::message(
-				"WVD key required to read chapters. Add your WVD file (base64) in source settings.",
-			));
-		}
-
 		let chapter_id = chapter
 			.key
 			.rsplit('/')
 			.next()
 			.filter(|s| !s.is_empty())
-			.ok_or_else(|| AidokuError::message("Invalid chapter key format"))?;
+			.ok_or_else(|| AidokuError::Message("Invalid chapter key format".into()))?;
 
 		let integrity_token = get_integrity_token()?;
-		let challenge = wvd::generate_challenge(&wvd_key, chapter_id)?;
 		let data_saver = settings::get_data_saver();
-		let challenge_url = format!("{API_URL}/api/v2/books/{chapter_id}?is_datasaver={data_saver}");
-		let challenge_body = format!(r#"{{"challenge":"{challenge}"}}"#);
+		let challenge_url =
+			format!("{API_URL}/api/v2/books/{chapter_id}?is_datasaver={data_saver}");
 
 		let text = Request::post(&challenge_url)?
 			.header("Content-Type", "application/json")
 			.header("Origin", BASE_URL)
 			.header("Referer", &format!("{BASE_URL}/"))
 			.header("x-integrity-token", &integrity_token)
-			.body(challenge_body)
+			.body("{}")
 			.string()?;
-		let challenge_dto: ChallengeDto =
-			serde_json::from_str(&text).map_err(|e| AidokuError::JsonParseError(Rc::new(e)))?;
+		let challenge_dto: ChallengeDto = serde_json::from_str(&text).map_err(|e| {
+			println!("failed to parse challengedto: {}", e);
+			println!("raw response (len: {}): {:?}", text.len(), text);
+
+			AidokuError::JsonParseError(Rc::new(e))
+		})?;
 
 		pages_from_challenge(chapter_id, challenge_dto, data_saver)
 	}
@@ -326,7 +341,7 @@ impl ImageRequestProvider for Kagane {
 	}
 }
 
-register_source!(Kagane);
+register_source!(Kagane, ImageRequestProvider);
 
 #[cfg(test)]
 mod tests {
@@ -351,38 +366,33 @@ mod tests {
 
 	#[aidoku_test]
 	fn test_challenge_pages_are_sorted_and_mapped() {
-		let pages = pages_from_challenge(
-			"chapter-id",
-			ChallengeDto {
-				access_token: "tok123".into(),
-				cache_url: "https://akari.kagane.org".into(),
-				pages: vec![
-					PageDto {
-						page_number: 2,
-						page_uuid: "uuid-2".into(),
-					},
-					PageDto {
-						page_number: 1,
-						page_uuid: "uuid-1".into(),
-					},
-				],
-			},
-			true,
+		let dto: ChallengeDto = serde_json::from_str(
+			r#"{
+				"access_token": "tok123",
+				"cache_url": "https://kstatic.to",
+				"manifest": {
+					"pages": [
+						{"page_id": "uuid-2", "page_no": 2, "ext": "webp"},
+						{"page_id": "uuid-1", "page_no": 1, "ext": "jxl"}
+					]
+				}
+			}"#,
 		)
 		.unwrap();
+		let pages = pages_from_challenge("chapter-id", dto, true).unwrap();
 
 		assert_eq!(pages.len(), 2);
 		assert_eq!(
 			pages[0].content,
 			PageContent::Url(
-				"https://akari.kagane.org/api/v2/books/file/chapter-id/uuid-1?token=tok123&is_datasaver=true".into(),
+				"https://kstatic.to/api/v2/books/page/chapter-id/uuid-1.jxl?token=tok123&is_datasaver=true".into(),
 				None
 			)
 		);
 		assert_eq!(
 			pages[1].content,
 			PageContent::Url(
-				"https://akari.kagane.org/api/v2/books/file/chapter-id/uuid-2?token=tok123&is_datasaver=true".into(),
+				"https://kstatic.to/api/v2/books/page/chapter-id/uuid-2.webp?token=tok123&is_datasaver=true".into(),
 				None
 			)
 		);
@@ -398,6 +408,7 @@ mod tests {
 				pages: vec![PageDto {
 					page_number: 1,
 					page_uuid: String::new(),
+					ext: None,
 				}],
 			},
 			false,
@@ -407,15 +418,13 @@ mod tests {
 	}
 
 	#[aidoku_test]
-	fn test_page_list_requires_wvd_key() {
+	fn test_image_request_is_constructed() {
 		let source = Kagane::new();
-		let result = source.get_page_list(
-			Manga::default(),
-			Chapter {
-				key: "/series/series-id/reader/chapter-id".into(),
-				..Default::default()
-			},
+		let result = source.get_image_request(
+			"https://kstatic.to/api/v2/books/page/chapter-id/page-id.jxl?token=tok123&is_datasaver=false"
+				.into(),
+			None,
 		);
-		assert!(result.is_err());
+		assert!(result.is_ok());
 	}
 }

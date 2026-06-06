@@ -104,8 +104,8 @@ pub fn build_search_body(
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use aidoku::alloc::vec;
 	use aidoku::FilterValue;
+	use aidoku::alloc::vec;
 	use aidoku_test::aidoku_test;
 
 	#[aidoku_test]
