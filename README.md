@@ -4,7 +4,6 @@ This repository hosts sources from upstream as well as my own custom sources. Se
 
 I will occasionally sync up with upstream's latest changes. The following extensions were added by me:
 
-- [Kagane](https://kagane.to)
 - [MangaPill](https://mangapill.com)
 - [Violet Scans](https://violetscans.com)
 
