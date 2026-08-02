@@ -1,0 +1,16 @@
+[
+	{
+		"type": "group",
+		"title": "Content",
+		"items": [
+			{
+				"type": "switch",
+				"key": "adultMode",
+				"title": "Adult Mode",
+				"default": false,
+				"refreshes": ["content"]
+			}
+		],
+		"footer": "Adult mode makes the browse listings show +18 titles only, matching the website, and stops search results from being filtered to safe titles."
+	}
+]

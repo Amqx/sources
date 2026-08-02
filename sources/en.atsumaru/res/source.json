@@ -1,0 +1,31 @@
+{
+	"info": {
+		"id": "en.atsumaru",
+		"name": "Atsumaru",
+		"version": 1,
+		"url": "https://atsu.moe",
+		"contentRating": 1,
+		"languages": [
+			"en"
+		],
+		"minAppVersion": "0.7.1"
+	},
+	"listings": [
+		{
+			"id": "trending",
+			"name": "Trending"
+		},
+		{
+			"id": "popular",
+			"name": "Popular"
+		},
+		{
+			"id": "recentlyUpdated",
+			"name": "Recently Updated"
+		},
+		{
+			"id": "recentlyAdded",
+			"name": "Recently Added"
+		}
+	]
+}
