@@ -1,12 +1,13 @@
 .DS_Store
 .build
 *.aix
+*.aix.tmp
 
 public/icons/
 public/sources/
 public/*.json
 
-# transient staging dirs created by scripts/package.sh
+# per-source build dirs from the pre-workspace layout; nothing writes here now
 sources/*/target
 sources/*/public
 templates/*/target
