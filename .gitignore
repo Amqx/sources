@@ -1,14 +1,19 @@
 .DS_Store
 .build
 *.aix
+*.aix.tmp
 
 public/icons/
 public/sources/
 public/*.json
 
+# per-source build dirs from the pre-workspace layout; nothing writes here now
 sources/*/target
 sources/*/public
 templates/*/target
+
+# clippy json output (CI)
+clippy/
 
 .idea
 *.iml

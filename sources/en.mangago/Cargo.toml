@@ -1,26 +1,17 @@
 [package]
 name = "mangago"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
 
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
-aes = "0.8"
-aidoku = { git = "https://github.com/Aidoku/aidoku-rs.git", version = "0.3.0" }
-base64 = { version = "0.22", default-features = false, features = ["alloc"] }
-cbc = { version = "0.1", features = ["alloc"] }
+aes.workspace = true
+aidoku.workspace = true
+base64.workspace = true
+cbc = { workspace = true, features = ["alloc"] }
 
 [dev-dependencies]
-aidoku = { git = "https://github.com/Aidoku/aidoku-rs.git", features = ["test"] }
-aidoku-test = { git = "https://github.com/Aidoku/aidoku-rs.git" }
-
-[profile.dev]
-panic = "abort"
-
-[profile.release]
-panic = "abort"
-opt-level = "s"
-strip = true
-lto = true
+aidoku = { workspace = true, features = ["test"] }
+aidoku-test.workspace = true

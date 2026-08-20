@@ -1,27 +1,18 @@
 [package]
 name = "nhentai"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-aidoku = { git = "https://github.com/Aidoku/aidoku-rs.git", version = "0.3.0", features = ["json"] }
-serde = { version = "1.0.188", default-features = false, features = ["derive", "alloc"] }
-serde_json = { version = "1.0.105", default-features = false, features = ["alloc"] }
-chrono = { version = "0.4.30", default-features = false, features = ["alloc"] }
-hashbrown = "0.13.2"
-
-[dev-dependencies]
-aidoku = { git = "https://github.com/Aidoku/aidoku-rs.git", features = ["test"] }
-aidoku-test = { git = "https://github.com/Aidoku/aidoku-rs.git" }
+version.workspace = true
+edition.workspace = true
 
 [lib]
 crate-type = ["cdylib"]
 
-[profile.dev]
-panic = "abort"
+[dependencies]
+aidoku = { workspace = true, features = ["json"] }
+chrono = { workspace = true, features = ["alloc"] }
+hashbrown.workspace = true
+serde = { workspace = true, features = ["derive", "alloc"] }
+serde_json = { workspace = true, features = ["alloc"] }
 
-[profile.release]
-panic = "abort"
-opt-level = "s"
-strip = true
-lto = true
+[dev-dependencies]
+aidoku = { workspace = true, features = ["test"] }
+aidoku-test.workspace = true

@@ -6,6 +6,10 @@ on:
     paths:
       - "sources/**"
       - "templates/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".cargo/**"
+      - "scripts/**"
       - ".github/workflows/build.yaml"
 
 concurrency:
@@ -30,7 +34,7 @@ jobs:
             ~/.cargo/registry/cache
             ~/.cargo/git/db
             ~/.cargo/bin
-            sources/**/target/
+            target/
           key: ${{ runner.os }}-cargo3-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo3-
@@ -55,13 +59,7 @@ jobs:
             cargo install --git https://github.com/amqx/aidoku-rs aidoku-cli
           fi
       - name: Build sources
-        run: |
-          for src in ./sources/*; do
-            (
-              cd "$src"
-              aidoku package
-            )
-          done
+        run: ./scripts/package.sh
       - name: Build source list
         run: |
           aidoku build sources/*/package.aix --name "Amqx's Sources"

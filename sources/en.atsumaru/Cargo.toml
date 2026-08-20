@@ -1,24 +1,15 @@
 [package]
 name = "atsumaru"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-aidoku = { git = "https://github.com/Aidoku/aidoku-rs.git", version = "0.3.0", features = ["json"] }
-serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
-
-[dev-dependencies]
-aidoku = { git = "https://github.com/Aidoku/aidoku-rs.git", features = ["test"] }
-aidoku-test = { git = "https://github.com/Aidoku/aidoku-rs.git" }
+version.workspace = true
+edition.workspace = true
 
 [lib]
 crate-type = ["cdylib"]
 
-[profile.dev]
-panic = "abort"
+[dependencies]
+aidoku = { workspace = true, features = ["json"] }
+serde = { workspace = true, features = ["derive", "alloc"] }
 
-[profile.release]
-panic = "abort"
-opt-level = "s"
-strip = true
-lto = true
+[dev-dependencies]
+aidoku = { workspace = true, features = ["test"] }
+aidoku-test.workspace = true

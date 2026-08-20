@@ -1,0 +1,24 @@
+name: Lint scripts
+on:
+  pull_request:
+    paths:
+      - "scripts/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/scripts.yaml"
+
+jobs:
+  types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      # --frozen so a ty release can't change what CI checks without a lockfile
+      # update landing in a PR first
+      - name: Install dev dependencies
+        run: uv sync --frozen
+      - name: Type check
+        run: uv run --frozen ty check scripts/

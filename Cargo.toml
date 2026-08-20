@@ -1,0 +1,64 @@
+[workspace]
+resolver = "3"
+members = ["sources/*", "templates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+
+# Shared dependency versions. Members inherit these with `dep.workspace = true`
+# and add their own `features = [...]` on top where they need extras.
+[workspace.dependencies]
+aes = { version = "0.8.4", default-features = false }
+# Pinned so every source compiles against the same aidoku-rs. Bump both revs together.
+aidoku = { git = "https://github.com/Aidoku/aidoku-rs.git", rev = "1a6bb691dd67c7151fc76fc852fb5a364d325f72", version = "0.3.0" }
+aidoku-test = { git = "https://github.com/Aidoku/aidoku-rs.git", rev = "1a6bb691dd67c7151fc76fc852fb5a364d325f72" }
+base64 = { version = "0.22.1", default-features = false, features = ["alloc"] }
+block-padding = "0.3.3"
+cbc = "0.1.2"
+chinese-number = { version = "0.7.8", default-features = false, features = ["chinese-to-number"] }
+chrono = { version = "0.4.42", default-features = false }
+digest = { version = "0.10.7", default-features = false, features = ["alloc"] }
+hashbrown = { version = "0.16", default-features = false, features = ["default-hasher"] }
+hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
+hmac = { version = "0.12.1", default-features = false }
+md-5 = { version = "0.10.6", default-features = false }
+md5 = { version = "0.8.0", default-features = false }
+miniz_oxide = { version = "0.8.9", default-features = false, features = ["with-alloc"] }
+paste = "1.0.15"
+prost = { version = "0.14", default-features = false, features = ["derive"] }
+regex = { version = "1.12.2", default-features = false }
+serde = { version = "1.0.228", default-features = false }
+serde_json = { version = "1.0.149", default-features = false }
+sha2 = { version = "0.10.9", default-features = false }
+spin = "0.10.0"
+strum = { version = "0.28.0", default-features = false, features = ["derive"] }
+uuid = { version = "1.23", default-features = false }
+
+# Source templates (multisrc)
+ezmanhwa = { path = "templates/ezmanhwa" }
+gigaviewer = { path = "templates/gigaviewer" }
+guya = { path = "templates/guya" }
+iken = { path = "templates/iken" }
+libgroup = { path = "templates/libgroup" }
+liliana = { path = "templates/liliana" }
+madara = { path = "templates/madara" }
+madtheme = { path = "templates/madtheme" }
+mangabox = { path = "templates/mangabox" }
+mangareader = { path = "templates/mangareader" }
+mangathemesia = { path = "templates/mangathemesia" }
+mangaworld_template = { path = "templates/mangaworld" }
+mmrcms = { path = "templates/mmrcms" }
+mytheme = { path = "templates/mytheme" }
+pizzareader = { path = "templates/pizzareader" }
+tukutema = { path = "templates/tukutema" }
+wpcomics = { path = "templates/wpcomics" }
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+opt-level = "s"
+strip = true
+lto = true
