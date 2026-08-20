@@ -21,5 +21,4 @@ clippy/
 .ropeproject
 /target
 
-icons.py
 *.wvd
