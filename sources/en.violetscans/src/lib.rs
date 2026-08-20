@@ -13,7 +13,7 @@ use aidoku::{
 	prelude::*,
 };
 
-const BASE_URL: &str = "https://violetscans.com";
+const BASE_URL: &str = "https://violetscans.org";
 const MANGA_PATH: &str = "/comics";
 
 struct VioletScans;
