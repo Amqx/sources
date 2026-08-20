@@ -1,5 +1,5 @@
 #![no_std]
-use aidoku::{prelude::*, Source};
+use aidoku::{Source, prelude::*};
 use iken::{Iken, Impl, Params};
 
 const BASE_URL: &str = "https://hivetoons.org";
@@ -16,6 +16,7 @@ impl Impl for HiveScans {
 		Params {
 			base_url: BASE_URL.into(),
 			api_url: Some(API_URL.into()),
+			fetch_full_chapter_list: true,
 			..Default::default()
 		}
 	}
