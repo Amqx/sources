@@ -6,9 +6,13 @@ public/icons/
 public/sources/
 public/*.json
 
+# transient staging dirs created by scripts/package.sh
 sources/*/target
 sources/*/public
 templates/*/target
+
+# clippy json output (CI)
+clippy/
 
 .idea
 *.iml

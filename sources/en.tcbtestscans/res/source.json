@@ -1,0 +1,10 @@
+{
+	"info": {
+		"id": "en.tcbtestscans",
+		"name": "TCB Test Scans",
+		"version": 1,
+		"url": "https://tcbtest.example",
+		"contentRating": 0,
+		"languages": ["en"]
+	}
+}

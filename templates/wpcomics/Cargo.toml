@@ -1,12 +1,12 @@
 [package]
 name = "wpcomics"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
 
 [dependencies]
-aidoku = { git = "https://github.com/Aidoku/aidoku-rs.git", version = "0.3.0", features = ["json"] }
-chrono = { version = "0.4.42", default-features = false }
+aidoku = { workspace = true, features = ["json"] }
+chrono.workspace = true
 
 [dev-dependencies]
-aidoku = { git = "https://github.com/Aidoku/aidoku-rs.git", features = ["test"] }
-aidoku-test = { git = "https://github.com/Aidoku/aidoku-rs.git" }
+aidoku = { workspace = true, features = ["test"] }
+aidoku-test.workspace = true

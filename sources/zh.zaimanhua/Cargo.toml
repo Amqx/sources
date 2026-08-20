@@ -1,27 +1,18 @@
 [package]
 name = "zaimanhua"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
 
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
-aidoku = { git = "https://github.com/Aidoku/aidoku-rs.git", version = "0.3.0", features = ["json"] }
-md5 = { version = "0.7", default-features = false }
-serde = { version = "1.0", default-features = false, features = ["derive", "alloc"] }
-serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
-hashbrown = { version = "0.16", default-features = false, features = ["default-hasher"] }
+aidoku = { workspace = true, features = ["json"] }
+hashbrown.workspace = true
+md5.workspace = true
+serde = { workspace = true, features = ["derive", "alloc"] }
+serde_json = { workspace = true, features = ["alloc"] }
 
 [dev-dependencies]
-aidoku = { git = "https://github.com/Aidoku/aidoku-rs.git", features = ["test"] }
-aidoku-test = { git = "https://github.com/Aidoku/aidoku-rs.git" }
-
-[profile.dev]
-panic = "abort"
-
-[profile.release]
-panic = "abort"
-opt-level = "s"
-strip = true
-lto = true
+aidoku = { workspace = true, features = ["test"] }
+aidoku-test.workspace = true

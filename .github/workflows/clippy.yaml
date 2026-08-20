@@ -4,6 +4,10 @@ on:
     paths:
       - "sources/**"
       - "templates/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".cargo/**"
+      - "scripts/**"
 
 jobs:
   lint:
@@ -23,7 +27,7 @@ jobs:
             ~/.cargo/registry/cache
             ~/.cargo/git/db
             ~/.cargo/bin
-            src/rust/**/target
+            target/
           key: ${{ runner.os }}-cargo3-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo3-
       - uses: actions-rs/toolchain@v1
@@ -37,32 +41,51 @@ jobs:
       - name: Lint sources
         id: lint
         run: |
-          shopt -s globstar
+          shopt -s nullglob
 
           echo "::group::Linting"
           readarray -t TEMP <<< "$(jq -r '.[]' <<<'${{ steps.files.outputs.added_modified }}')"
 
-          while IFS= read -r -d $'\0' i; do
-            if [[ "$i" == *"sources"* || "$i" == *"templates"* ]]; then
-              (
-                cd "$i"
-                cargo clippy --message-format=json > annotations.json
-                jq --arg WORKING_DIRECTORY "${i%/}" \
-                   -rsf ${{ github.workspace }}/.github/workflows/supporting/annotations.jq annotations.json
-              )
-            fi
-          done < <(printf "%s\n" "${TEMP[@]}" | cut -d'/' -f-2 | sort -u | grep -E '^(sources|templates)' | tr '\n' '\0')
+          mkdir -p clippy
+
+          # Workspace-level files affect every member, so lint all of them.
+          DIRS=()
+          for f in "${TEMP[@]}"; do
+            case "$f" in
+              Cargo.toml|Cargo.lock|.cargo/*|scripts/*) DIRS=(sources/* templates/*); break ;;
+            esac
+          done
+
+          if [ ${#DIRS[@]} -eq 0 ]; then
+            while IFS= read -r -d $'\0' i; do
+              DIRS+=("${i%/}")
+            done < <(printf "%s\n" "${TEMP[@]}" | cut -d'/' -f-2 | sort -u | grep -E '^(sources|templates)' | tr '\n' '\0')
+          fi
+
+          for i in "${DIRS[@]}"; do
+            [ -f "$i/Cargo.toml" ] || continue
+            # lint one package at a time so each gets exactly the features it declares
+            PKG=$(sed -n 's/^name = "\(.*\)"/\1/p' "$i/Cargo.toml" | head -1)
+            cargo clippy -p "$PKG" --message-format=json > "clippy/$PKG.json"
+            jq -rsf .github/workflows/supporting/annotations.jq "clippy/$PKG.json"
+          done
           echo "::endgroup::"
+
+          ANNOTATIONS=(clippy/*.json)
+          if [ ${#ANNOTATIONS[@]} -eq 0 ]; then
+            echo "nothing to lint"
+            exit 0
+          fi
 
           echo "::group::Generating summary"
           jq --arg RUSTC_VERSION "$(rustc --version)" \
              --arg CARGO_VERSION "$(cargo --version)" \
              --arg CLIPPY_VERSION "$(cargo clippy --version)" \
-             -srf ${{ github.workspace }}/.github/workflows/supporting/summary.jq ./**/annotations.json > $GITHUB_STEP_SUMMARY
+             -srf .github/workflows/supporting/summary.jq "${ANNOTATIONS[@]}" > $GITHUB_STEP_SUMMARY
           echo "::endgroup::"
 
           echo "::group::Failing this step if clippy generated anything"
-          for annotation in ./**/annotations.json; do
+          for annotation in "${ANNOTATIONS[@]}"; do
             LINT_COUNT=$(jq -sr 'map(select(.reason == "compiler-message" and .message.code and .message.spans[].is_primary)) | length' $annotation)
 
             if ! [ "$LINT_COUNT" = "0" ]; then

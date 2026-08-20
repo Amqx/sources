@@ -41,6 +41,43 @@ Using AI for assistance or reference when creating sources is allowed, but is ge
 
 Learning to use Rust and develop Aidoku sources is fun and feels more accomplishing to do without AI assistance. We are happy to provide reviews suggesting how to improve your code so you can accelerate your learning, and the [Aidoku Discord server](https://discord.gg/aidoku/) is additionally available to help in the `#source-dev` channel.
 
+## Repository layout
+
+Every source and template is a member of a single Cargo workspace rooted at the repo. That means one `Cargo.lock`, one `target/` directory, and one place to change a dependency version.
+
+### Dependencies
+
+Shared dependency versions live in `[workspace.dependencies]` in the root `Cargo.toml`. A source inherits one like this:
+
+```toml
+[dependencies]
+aidoku = { workspace = true, features = ["json"] }
+serde_json = { workspace = true, features = ["alloc"] }
+chrono.workspace = true
+```
+
+The workspace entry supplies the version and `default-features`; `features` listed in the member are added on top. Don't pin a version in a member manifest — if you need a newer one, bump the workspace entry so every source moves together. `aidoku` and `aidoku-test` are pinned to an explicit git revision; bump both at once.
+
+`version`, `edition`, and the release profile are inherited too, so a source manifest only needs its name, `[lib]`, and its dependencies.
+
+### Building and packaging
+
+Build a single source without leaving the repo root:
+
+```sh
+cargo build --release -p <package-name>
+cargo clippy -p <package-name>
+```
+
+To produce an `.aix`, use the packaging script rather than calling `aidoku package` directly:
+
+```sh
+./scripts/package.sh sources/en.mysource   # one or more sources
+./scripts/package.sh                       # everything
+```
+
+`aidoku package` copies the first `.wasm` it finds in the build directory, which is ambiguous when every source builds into the shared workspace `target/`. The script stages each source's own binary where the CLI looks first, so it packages the right one.
+
 ## Templates
 
 Some websites tend to have very similar structures, especially those that use [WordPress](https://wordpress.org/) themes. In those cases, we write [templates](https://github.com/Aidoku-Community/sources/tree/main/templates) that can be used for multiple sources. 

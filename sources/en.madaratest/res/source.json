@@ -1,0 +1,10 @@
+{
+	"info": {
+		"id": "en.madaratest",
+		"name": "Madara Test",
+		"version": 1,
+		"url": "https://madaratest.example",
+		"contentRating": 1,
+		"languages": ["en"]
+	}
+}

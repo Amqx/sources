@@ -4,6 +4,10 @@ on:
     paths:
       - "sources/**"
       - "templates/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".cargo/**"
+      - "scripts/**"
       - ".github/workflows/pr.yaml"
 
 jobs:
@@ -28,7 +32,7 @@ jobs:
             ~/.cargo/registry/cache
             ~/.cargo/git/db
             ~/.cargo/bin
-            sources/**/target
+            target/
           key: ${{ runner.os }}-cargo3-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo3-
       - name: sccache
@@ -53,21 +57,39 @@ jobs:
           fi
       - name: Build sources
         run: |
+          shopt -s nullglob
           readarray -t TEMP <<< "$(jq -r '.[]' <<<'${{ steps.files.outputs.added_modified }}')"
 
-          while IFS= read -r -d $'\0' i; do
-            if [[ "$i" == *"sources"* ]]; then
-              (
-                cd "$i"
-                aidoku package
-              )
-            fi
-          done < <(printf "%s\n" "${TEMP[@]}" | cut -d'/' -f-2 | sort -u | grep 'sources' | tr '\n' '\0')
+          # Workspace-level files affect every member, so build all of them.
+          DIRS=()
+          for f in "${TEMP[@]}"; do
+            case "$f" in
+              Cargo.toml|Cargo.lock|.cargo/*|scripts/*) DIRS=(sources/*); break ;;
+            esac
+          done
+
+          if [ ${#DIRS[@]} -eq 0 ]; then
+            while IFS= read -r -d $'\0' i; do
+              [ -f "$i/Cargo.toml" ] && DIRS+=("$i")
+            done < <(printf "%s\n" "${TEMP[@]}" | cut -d'/' -f-2 | sort -u | grep 'sources' | tr '\n' '\0')
+          fi
+
+          if [ ${#DIRS[@]} -eq 0 ]; then
+            echo "no source packages changed"
+          else
+            ./scripts/package.sh "${DIRS[@]}"
+          fi
       - name: Test if sources are valid
-        run: aidoku verify sources/*/package.aix
+        run: |
+          shopt -s nullglob
+          PKGS=(sources/*/package.aix)
+          [ ${#PKGS[@]} -eq 0 ] || aidoku verify "${PKGS[@]}"
       - name: Flatten packages directory
         if: always()
-        run: aidoku build sources/*/package.aix
+        run: |
+          shopt -s nullglob
+          PKGS=(sources/*/package.aix)
+          [ ${#PKGS[@]} -eq 0 ] || aidoku build "${PKGS[@]}"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

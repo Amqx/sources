@@ -18,7 +18,7 @@ def sanitize(x):
   | .message
   | (.spans[] | select(.is_primary)) as $span
   | "::\(annotation_level(.level)) "
-    + "file=\($WORKING_DIRECTORY)/\($span.file_name | gsub("\\\\"; "/")),"
+    + "file=\($span.file_name | gsub("\\\\"; "/")),"
     + "line=\($span.line_start),"
     + "endLine=\($span.line_end),"
     + "col=\($span.column_start),"
