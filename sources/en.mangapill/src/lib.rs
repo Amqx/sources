@@ -116,9 +116,16 @@ impl Source for MangaPill {
 		needs_chapters: bool,
 	) -> Result<Manga> {
 		let url = format!("{BASE_URL}{}", manga.key);
-		let html = Request::get(url)?.html()?;
+		let html = Request::get(&url)?.html()?;
 
 		if needs_details {
+			manga.title = html
+				.select_first("div.container h1")
+				.and_then(|el| el.text())
+				.unwrap_or(manga.title);
+
+			manga.url = Some(url);
+
 			manga.cover = html
 				.select_first("div.container > div:first-child > div:first-child > img")
 				.and_then(|img| img.attr("data-src"));
