@@ -22,3 +22,6 @@ clippy/
 /target
 
 *.wvd
+
+# CI checkout of the deployed source list, for package reuse
+.deployed/

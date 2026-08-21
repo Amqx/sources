@@ -9,6 +9,7 @@
 # Usage:
 #   scripts/package.sh                       # every source
 #   scripts/package.sh sources/en.tcbscans   # only the ones listed
+#   scripts/package.sh --reuse-from DIR      # rebuild only what changed since DIR
 
 set -euo pipefail
 

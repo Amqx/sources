@@ -1,5 +1,6 @@
 name: Build sources
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -25,7 +26,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # The deployed source list doubles as the package cache: anything whose
+      # inputs haven't changed since it was published is copied back instead of
+      # being recompiled. Missing on the very first deploy, hence the guard.
+      - name: Fetch the deployed source list
+        uses: actions/checkout@v4
+        continue-on-error: true
+        with:
+          ref: gh-pages
+          path: .deployed
+          # one commit deep by default, and the branch is squashed to a single
+          # commit on every deploy, so this fetches the packages and nothing else
+          sparse-checkout: sources
       - uses: google/wireit@setup-github-actions-caching/v1
+      # The run id keeps the key unique: on an exact hit actions/cache skips
+      # saving, which used to freeze target/ at whatever it held the first time
+      # a lockfile was seen and left every later run recompiling from scratch.
       - name: Cache rust stuff
         uses: actions/cache@v4
         with:
@@ -35,9 +51,10 @@ jobs:
             ~/.cargo/git/db
             ~/.cargo/bin
             target/
-          key: ${{ runner.os }}-cargo3-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}-${{ github.run_id }}
           restore-keys: |
-            ${{ runner.os }}-cargo3-
+            ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}-
+            ${{ runner.os }}-cargo-build-
       - name: sccache
         uses: actions/cache@v4
         with:
@@ -59,10 +76,18 @@ jobs:
             cargo install --git https://github.com/amqx/aidoku-rs aidoku-cli
           fi
       - name: Build sources
-        run: ./scripts/package.sh
+        run: |
+          # fingerprinted before the build, so the manifest records the tree the
+          # reuse decision was made against; cargo rewriting Cargo.lock mid-run
+          # would otherwise publish fingerprints no later checkout can match
+          ./scripts/aidoku.py manifest -o "$RUNNER_TEMP/build-manifest.json"
+          ./scripts/package.sh --reuse-from .deployed/sources
       - name: Build source list
         run: |
           aidoku build sources/*/package.aix --name "Amqx's Sources"
+          # published alongside the packages, so the next run can tell which of
+          # them are still current
+          mv "$RUNNER_TEMP/build-manifest.json" public/sources/
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4.7.2
         if: ${{ github.ref == 'refs/heads/main' }}

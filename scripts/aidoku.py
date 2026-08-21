@@ -16,12 +16,17 @@ Those two are reimplemented here against the workspace layout. The rest
 (`build`, `verify`, `serve`, `logcat`) only ever touch `.aix` files, so they are
 forwarded to the real CLI with the workspace's defaults filled in.
 
+`package --reuse-from` and `manifest` are additions on top: together they let a
+build copy back the packages whose inputs haven't changed since the last one,
+so CI only recompiles the sources a push actually touched.
+
 Run `scripts/aidoku.py --help`, or `--help` on any command, for usage.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -29,6 +34,7 @@ import shutil
 import struct
 import subprocess
 import sys
+import tomllib
 import unicodedata
 import zipfile
 import zlib
@@ -38,6 +44,7 @@ from typing import Any, Callable, Iterable, NamedTuple, NoReturn, Sequence
 ROOT: Path = Path(__file__).resolve().parent.parent
 TARGET = "wasm32-unknown-unknown"
 SOURCE_LIST_NAME = "Amqx's Sources"
+MANIFEST_NAME = "build-manifest.json"
 CLI_INSTALL_HINT = (
     "install it with: cargo install --git https://github.com/Aidoku/aidoku-rs aidoku-cli"
 )
@@ -121,9 +128,15 @@ class Member:
         return self.path / "package.aix"
 
     def source_id(self) -> str | None:
+        key = self.source_key()
+        return key[0] if key else None
+
+    def source_key(self) -> tuple[str, Any] | None:
+        """(id, version), which is what identifies a built package."""
         try:
             with self.source_json.open(encoding="utf-8") as f:
-                return json.load(f)["info"]["id"]
+                info = json.load(f)["info"]
+            return (info["id"], info["version"])
         except (OSError, ValueError, KeyError):
             return None
 
@@ -217,6 +230,210 @@ def package_files(targets: Sequence[str]) -> list[str]:
     return files
 
 
+# --------------------------------------------------------------- fingerprints
+
+# Nothing under here feeds the wasm, so it must not feed the fingerprint either.
+FINGERPRINT_SKIP_DIRS = {"target", ".git", "__pycache__"}
+FINGERPRINT_SKIP_FILES = {"package.aix"}
+
+
+def toolchain_id() -> str:
+    """`rustc --version`, so a compiler bump invalidates every fingerprint."""
+    global _TOOLCHAIN_ID
+    if _TOOLCHAIN_ID is None:
+        _TOOLCHAIN_ID = "unknown"
+        if shutil.which("rustc") is not None:
+            try:
+                result = subprocess.run(
+                    ["rustc", "--version"], capture_output=True, text=True, check=True
+                )
+                _TOOLCHAIN_ID = result.stdout.strip()
+            except (OSError, subprocess.CalledProcessError):
+                pass
+    return _TOOLCHAIN_ID
+
+
+_TOOLCHAIN_ID: str | None = None
+
+
+def workspace_paths() -> dict[str, Path]:
+    """Dependency name -> member directory, from `[workspace.dependencies]`.
+
+    Members declare templates as `iken.workspace = true`, so the root manifest
+    is the only place that says which directory that name points at.
+    """
+    global _WORKSPACE_PATHS
+    if _WORKSPACE_PATHS is None:
+        paths: dict[str, Path] = {}
+        try:
+            with (ROOT / "Cargo.toml").open("rb") as f:
+                manifest = tomllib.load(f)
+        except (OSError, tomllib.TOMLDecodeError):
+            manifest = {}
+        workspace = manifest.get("workspace", {})
+        for name, spec in workspace.get("dependencies", {}).items():
+            if isinstance(spec, dict) and "path" in spec:
+                paths[name] = (ROOT / spec["path"]).resolve()
+        _WORKSPACE_PATHS = paths
+    return _WORKSPACE_PATHS
+
+
+_WORKSPACE_PATHS: dict[str, Path] | None = None
+
+
+def local_dependencies(path: Path) -> list[Path]:
+    """The workspace members this crate links against, dev-dependencies aside.
+
+    Tests never end up in the wasm, so a change to one shouldn't force every
+    source built on that template to be rebuilt.
+    """
+    try:
+        with (path / "Cargo.toml").open("rb") as f:
+            manifest = tomllib.load(f)
+    except (OSError, tomllib.TOMLDecodeError):
+        return []
+
+    tables: list[dict[str, Any]] = []
+    for key in ("dependencies", "build-dependencies"):
+        tables.append(manifest.get(key, {}))
+    for spec in manifest.get("target", {}).values():
+        for key in ("dependencies", "build-dependencies"):
+            tables.append(spec.get(key, {}))
+
+    known = workspace_paths()
+    found = []
+    for table in tables:
+        for name, spec in table.items():
+            if isinstance(spec, dict) and "path" in spec:
+                found.append((path / spec["path"]).resolve())
+            elif name in known:
+                found.append(known[name])
+    return found
+
+
+def dependency_closure(member: Member) -> list[Path]:
+    """Every member directory whose contents can change this one's wasm."""
+    seen = {member.path}
+    queue = [member.path]
+    while queue:
+        for dependency in local_dependencies(queue.pop()):
+            if dependency not in seen and (dependency / "Cargo.toml").is_file():
+                seen.add(dependency)
+                queue.append(dependency)
+    return sorted(seen)
+
+
+def hash_tree(digest: "hashlib._Hash", root: Path) -> None:
+    """Fold a directory's paths and contents into `digest`, order-independently."""
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = sorted(d for d in dirnames if d not in FINGERPRINT_SKIP_DIRS)
+        base = Path(dirpath)
+        for name in sorted(filenames):
+            if name in FINGERPRINT_SKIP_FILES or name.endswith(".tmp"):
+                continue
+            path = base / name
+            digest.update(path.relative_to(root).as_posix().encode("utf-8"))
+            digest.update(b"\0")
+            try:
+                # the path is folded in above either way, so a file that can't
+                # be read doesn't hash the same as one that isn't there
+                digest.update(hashlib.sha256(path.read_bytes()).digest())
+            except OSError:
+                digest.update(b"<unreadable>")
+
+
+def fingerprint(member: Member) -> str:
+    """A hash of everything that decides what this source's .aix contains.
+
+    Its own files, the templates it pulls in, the workspace manifests that pin
+    every shared dependency and the flags to build them with, the toolchain, and
+    this script (which lays the .aix out). Equal fingerprints mean a rebuild
+    would produce the same package.
+    """
+    digest = hashlib.sha256()
+    digest.update(toolchain_id().encode("utf-8"))
+    digest.update(b"\0")
+    shared_inputs = (
+        ROOT / "Cargo.toml",
+        ROOT / "Cargo.lock",
+        ROOT / ".cargo" / "config.toml",
+        Path(__file__).resolve(),
+    )
+    for shared in shared_inputs:
+        try:
+            digest.update(hashlib.sha256(shared.read_bytes()).digest())
+        except OSError:
+            digest.update(b"\0")
+    for path in dependency_closure(member):
+        digest.update(rel(path).encode("utf-8"))
+        digest.update(b"\0")
+        hash_tree(digest, path)
+    return digest.hexdigest()
+
+
+def read_manifest(path: Path) -> dict[str, str]:
+    try:
+        with path.open(encoding="utf-8") as f:
+            loaded = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(loaded, dict):
+        return {}
+    return {k: v for k, v in loaded.items() if isinstance(v, str)}
+
+
+def aix_source_key(path: Path) -> tuple[str, Any] | None:
+    """The (id, version) a built package declares, read out of the archive."""
+    try:
+        with zipfile.ZipFile(str(path)) as archive:
+            with archive.open("Payload/source.json") as f:
+                info = json.loads(f.read().decode("utf-8"))["info"]
+        return (info["id"], info["version"])
+    except (OSError, ValueError, KeyError, zipfile.BadZipFile):
+        return None
+
+
+class Cache:
+    """Packages from a previous build, reusable when the inputs haven't moved.
+
+    CI points this at the deployed source list, so a push only recompiles the
+    sources it actually touched; everything else is copied back verbatim.
+    """
+
+    def __init__(self, directory: Path) -> None:
+        self.directory = directory
+        self.fingerprints = read_manifest(directory / MANIFEST_NAME)
+        self.by_key: dict[tuple[str, Any], Path] = {}
+        if not directory.is_dir():
+            info("{} does not exist; building every source".format(rel(directory)))
+            return
+        for path in sorted(directory.glob("*.aix")):
+            # keyed by what the package declares rather than by its filename, so
+            # this doesn't have to guess the naming the CLI wrote them out with
+            key = aix_source_key(path)
+            if key is not None:
+                self.by_key[key] = path
+
+    def restore(self, member: Member) -> bool:
+        """Copy the cached .aix into place, if it's still the right one."""
+        recorded = self.fingerprints.get(member.dir_name)
+        if not recorded or recorded != fingerprint(member):
+            return False
+        # The id *and version* have to match: a manifest that has drifted out of
+        # step with the packages beside it must fall back to a rebuild rather
+        # than silently ship a package built from a different revision.
+        key = member.source_key()
+        cached = self.by_key.get(key) if key else None
+        if cached is None:
+            return False
+        # staged and swapped in like write_aix does, so an interrupted copy
+        # can't leave a truncated .aix for `build` or `verify` to pick up
+        staging = member.package.with_name(member.package.name + ".tmp")
+        shutil.copyfile(str(cached), str(staging))
+        os.replace(str(staging), str(member.package))
+        return True
+
+
 # -------------------------------------------------------------------- package
 
 def wasm_for(name: str) -> Path | None:
@@ -249,12 +466,19 @@ def write_aix(member: Member, wasm: Path, output: Path) -> None:
 
 def cmd_package(args: argparse.Namespace) -> None:
     targets = resolve(args.paths, "source")
+    cache = Cache(Path(args.reuse_from).resolve()) if args.reuse_from else None
+    reused = 0
 
     for member in targets:
         if member.name is None:
             die("{}: could not read the package name from Cargo.toml".format(member))
         if not member.source_json.is_file():
             die("{}: res/source.json is missing".format(member))
+
+        if cache is not None and cache.restore(member):
+            reused += 1
+            info("reused {} -> {}".format(member, rel(member.package)))
+            continue
 
         if not args.skip_build:
             # One package per invocation: `-p a -p b` unifies their feature sets
@@ -280,6 +504,20 @@ def cmd_package(args: argparse.Namespace) -> None:
 
     if not targets:
         info("nothing to package")
+    elif cache is not None:
+        info("reused {} of {} packages".format(reused, len(targets)))
+
+
+def cmd_manifest(args: argparse.Namespace) -> None:
+    """Record what each source was built from, for the next run to compare against."""
+    targets = resolve(args.paths, "source")
+    fingerprints = {member.dir_name: fingerprint(member) for member in targets}
+    output = Path(args.output).resolve()
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("w", encoding="utf-8") as f:
+        json.dump(fingerprints, f, indent=2, sort_keys=True)
+        f.write("\n")
+    info("wrote {} fingerprints to {}".format(len(fingerprints), rel(output)))
 
 
 # -------------------------------------------- build / verify / serve / logcat
@@ -1028,7 +1266,23 @@ def parser() -> argparse.ArgumentParser:
     package.add_argument(
         "--skip-build", action="store_true", help="package the wasm already in target/"
     )
+    package.add_argument(
+        "--reuse-from",
+        metavar="DIR",
+        help="directory of previously built .aix files (with a {}) to copy "
+        "unchanged sources from instead of rebuilding them".format(MANIFEST_NAME),
+    )
     package.set_defaults(func=cmd_package)
+
+    manifest = commands.add_parser(
+        "manifest", help="record build fingerprints for a later --reuse-from"
+    )
+    manifest.add_argument("paths", nargs="*", metavar="SOURCE")
+    manifest.add_argument(
+        "-o", "--output", default=str(ROOT / "public" / "sources" / MANIFEST_NAME),
+        help="where to write the manifest",
+    )
+    manifest.set_defaults(func=cmd_manifest)
 
     build = commands.add_parser("build", help="build a source list from packaged sources")
     build.add_argument("files", nargs="*", metavar="FILE")
