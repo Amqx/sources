@@ -1,4 +1,5 @@
 name: Build sources
+
 on:
   workflow_dispatch:
   push:
@@ -19,31 +20,30 @@ concurrency:
 
 jobs:
   build:
+    permissions:
+      contents: write
+
     env:
       RUSTC_WRAPPER: sccache
       SCCACHE_CACHE_SIZE: 2G
       SCCACHE_VERSION: 0.3.0
+
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      # The deployed source list doubles as the package cache: anything whose
-      # inputs haven't changed since it was published is copied back instead of
-      # being recompiled. Missing on the very first deploy, hence the guard.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
       - name: Fetch the deployed source list
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         continue-on-error: true
         with:
           ref: gh-pages
           path: .deployed
-          # one commit deep by default, and the branch is squashed to a single
-          # commit on every deploy, so this fetches the packages and nothing else
           sparse-checkout: sources
-      - uses: google/wireit@setup-github-actions-caching/v1
-      # The run id keeps the key unique: on an exact hit actions/cache skips
-      # saving, which used to freeze target/ at whatever it held the first time
-      # a lockfile was seen and left every later run recompiling from scratch.
-      - name: Cache rust stuff
-        uses: actions/cache@v4
+
+      - name: Restore Rust's cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
             ~/.cargo/registry/index
@@ -55,17 +55,21 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}-
             ${{ runner.os }}-cargo-build-
-      - name: sccache
-        uses: actions/cache@v4
+
+      - name: Cache sccache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.cache/sccache
           key: ${{ runner.os }}-sccache-${{ github.sha }}
-          restore-keys: ${{ runner.os }}-sccache-
-      - uses: actions-rs/toolchain@v1
+          restore-keys: |
+            ${{ runner.os }}-sccache-
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
         with:
           toolchain: stable
-          override: true
-          target: wasm32-unknown-unknown
+          targets: wasm32-unknown-unknown
+
       - name: Install build dependencies
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -75,21 +79,19 @@ jobs:
           if ! command -v aidoku >/dev/null 2>&1; then
             cargo install --git https://github.com/amqx/aidoku-rs aidoku-cli
           fi
+
       - name: Build sources
         run: |
-          # fingerprinted before the build, so the manifest records the tree the
-          # reuse decision was made against; cargo rewriting Cargo.lock mid-run
-          # would otherwise publish fingerprints no later checkout can match
           ./scripts/aidoku.py manifest -o "$RUNNER_TEMP/build-manifest.json"
           ./scripts/package.sh --reuse-from .deployed/sources
+
       - name: Build source list
         run: |
           aidoku build sources/*/package.aix --name "Amqx's Sources"
-          # published alongside the packages, so the next run can tell which of
-          # them are still current
           mv "$RUNNER_TEMP/build-manifest.json" public/sources/
+
       - name: Deploy to GitHub Pages
-        uses: JamesIves/github-pages-deploy-action@v4.7.2
+        uses: JamesIves/github-pages-deploy-action@d92aa235d04922e8f08b40ce78cc5442fcfbfa2f # v4.8.0
         if: ${{ github.ref == 'refs/heads/main' }}
         with:
           branch: gh-pages
@@ -98,15 +100,17 @@ jobs:
           git-config-email: github-actions[bot]@users.noreply.github.com
           commit-message: Update source list
           single-commit: true
-      - name: Uploading packages as artifact
-        uses: actions/upload-artifact@v4
+
+      - name: Upload packages artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: packages
           path: public/sources/*.aix
           if-no-files-found: ignore
-      - name: Uploading gh-pages deployment as artifact
-        uses: actions/upload-artifact@v4
+
+      - name: Upload gh-pages artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: gh-pages

@@ -281,28 +281,53 @@ def workspace_paths() -> dict[str, Path]:
 _WORKSPACE_PATHS: dict[str, Path] | None = None
 
 
+def load_toml(path: Path) -> dict[str, Any]:
+    try:
+        with path.open("rb") as f:
+            return tomllib.load(f)
+    except (OSError, tomllib.TOMLDecodeError):
+        return {}
+
+
+def dependency_tables(manifest: dict[str, Any]) -> list[dict[str, Any]]:
+    """Non-dev dependency tables whose contents can feed the wasm."""
+    tables = [manifest.get(key, {}) for key in ("dependencies", "build-dependencies")]
+    for spec in manifest.get("target", {}).values():
+        for key in ("dependencies", "build-dependencies"):
+            tables.append(spec.get(key, {}))
+    return [table for table in tables if isinstance(table, dict)]
+
+
+def dependency_names(path: Path) -> tuple[set[str], set[str]]:
+    """(Cargo package names, inherited workspace dependency keys) used by a crate."""
+    package_names: set[str] = set()
+    workspace_keys: set[str] = set()
+    workspace = load_toml(ROOT / "Cargo.toml").get("workspace", {})
+    workspace_dependencies = workspace.get("dependencies", {})
+    for table in dependency_tables(load_toml(path / "Cargo.toml")):
+        for key, spec in table.items():
+            resolved = spec
+            if isinstance(spec, dict) and spec.get("workspace") is True:
+                workspace_keys.add(key)
+                resolved = workspace_dependencies.get(key, spec)
+            if isinstance(resolved, dict):
+                package_names.add(resolved.get("package", key))
+            else:
+                package_names.add(key)
+    return package_names, workspace_keys
+
+
 def local_dependencies(path: Path) -> list[Path]:
     """The workspace members this crate links against, dev-dependencies aside.
 
     Tests never end up in the wasm, so a change to one shouldn't force every
     source built on that template to be rebuilt.
     """
-    try:
-        with (path / "Cargo.toml").open("rb") as f:
-            manifest = tomllib.load(f)
-    except (OSError, tomllib.TOMLDecodeError):
-        return []
-
-    tables: list[dict[str, Any]] = []
-    for key in ("dependencies", "build-dependencies"):
-        tables.append(manifest.get(key, {}))
-    for spec in manifest.get("target", {}).values():
-        for key in ("dependencies", "build-dependencies"):
-            tables.append(spec.get(key, {}))
+    manifest = load_toml(path / "Cargo.toml")
 
     known = workspace_paths()
     found = []
-    for table in tables:
+    for table in dependency_tables(manifest):
         for name, spec in table.items():
             if isinstance(spec, dict) and "path" in spec:
                 found.append((path / spec["path"]).resolve())
@@ -342,20 +367,119 @@ def hash_tree(digest: "hashlib._Hash", root: Path) -> None:
                 digest.update(b"<unreadable>")
 
 
+def canonical_hash(digest: "hashlib._Hash", value: Any) -> None:
+    """Hash TOML-derived data without making comments or ordering significant."""
+    digest.update(json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8"))
+    digest.update(b"\0")
+
+
+def root_build_config(paths: Sequence[Path]) -> dict[str, Any]:
+    """Root settings that affect these crates, excluding unrelated workspace members."""
+    manifest = load_toml(ROOT / "Cargo.toml")
+    workspace = manifest.get("workspace", {})
+    keys: set[str] = set()
+    for path in paths:
+        keys.update(dependency_names(path)[1])
+    dependencies = workspace.get("dependencies", {})
+    return {
+        "resolver": workspace.get("resolver"),
+        "package": workspace.get("package", {}),
+        "dependencies": {key: dependencies[key] for key in sorted(keys) if key in dependencies},
+        "profile": manifest.get("profile", {}),
+        "patch": manifest.get("patch", {}),
+        "replace": manifest.get("replace", {}),
+    }
+
+
+def lock_ref(ref: str, packages: Sequence[dict[str, Any]]) -> dict[str, Any] | None:
+    """Resolve Cargo.lock's compact dependency reference to its package table."""
+    parts = ref.split(" ", 2)
+    name = parts[0]
+    version = parts[1] if len(parts) > 1 else None
+    source = parts[2][1:-1] if len(parts) > 2 and parts[2].startswith("(") else None
+    matches = [
+        package
+        for package in packages
+        if package.get("name") == name
+        and (version is None or package.get("version") == version)
+        and (source is None or package.get("source") == source)
+    ]
+    return matches[0] if len(matches) == 1 else None
+
+
+def lock_package_for_member(path: Path, packages: Sequence[dict[str, Any]]) -> dict[str, Any] | None:
+    name = read_package_name(path / "Cargo.toml")
+    matches = [p for p in packages if p.get("name") == name and "source" not in p]
+    return matches[0] if len(matches) == 1 else None
+
+
+def lock_dependency_closure(paths: Sequence[Path]) -> list[dict[str, Any]] | None:
+    """Lockfile package tables reachable through these crates' non-dev dependencies.
+
+    Workspace member tables mix normal and dev dependencies in Cargo.lock. Seed the
+    walk from the manifests' non-dev declarations, then follow the exact lockfile
+    references. Local crates are hashed from disk and seeded independently.
+    """
+    lock = load_toml(ROOT / "Cargo.lock")
+    packages = lock.get("package")
+    if not isinstance(packages, list):
+        return None
+    local_names = {read_package_name(path / "Cargo.toml") for path in paths}
+    queue: list[dict[str, Any]] = []
+    for path in paths:
+        member_package = lock_package_for_member(path, packages)
+        if member_package is None:
+            return None
+        direct_names = dependency_names(path)[0]
+        for ref in member_package.get("dependencies", []):
+            package = lock_ref(ref, packages)
+            if package is None:
+                return None
+            if package.get("name") in direct_names and package.get("name") not in local_names:
+                queue.append(package)
+
+    seen: set[tuple[Any, Any, Any]] = set()
+    result: list[dict[str, Any]] = []
+    while queue:
+        package = queue.pop()
+        identity = (package.get("name"), package.get("version"), package.get("source"))
+        if identity in seen:
+            continue
+        seen.add(identity)
+        result.append(package)
+        for ref in package.get("dependencies", []):
+            dependency = lock_ref(ref, packages)
+            if dependency is None:
+                return None
+            if dependency.get("name") not in local_names:
+                queue.append(dependency)
+    return sorted(
+        result,
+        key=lambda p: (p.get("name", ""), p.get("version", ""), p.get("source", "")),
+    )
+
+
 def fingerprint(member: Member) -> str:
     """A hash of everything that decides what this source's .aix contains.
 
-    Its own files, the templates it pulls in, the workspace manifests that pin
-    every shared dependency and the flags to build them with, the toolchain, and
-    this script (which lays the .aix out). Equal fingerprints mean a rebuild
-    would produce the same package.
+    Its own files, the templates it pulls in, its resolved dependency packages
+    and workspace build settings, the toolchain, and this script (which lays the
+    .aix out). Equal fingerprints mean a rebuild would produce the same package.
     """
     digest = hashlib.sha256()
     digest.update(toolchain_id().encode("utf-8"))
     digest.update(b"\0")
+    paths = dependency_closure(member)
+    canonical_hash(digest, root_build_config(paths))
+    locked = lock_dependency_closure(paths)
+    if locked is None:
+        # A malformed or ambiguous lockfile must invalidate safely, not accidentally
+        # make two builds appear equivalent.
+        try:
+            digest.update(hashlib.sha256((ROOT / "Cargo.lock").read_bytes()).digest())
+        except OSError:
+            digest.update(b"\0")
     shared_inputs = (
-        ROOT / "Cargo.toml",
-        ROOT / "Cargo.lock",
         ROOT / ".cargo" / "config.toml",
         Path(__file__).resolve(),
     )
@@ -364,7 +488,9 @@ def fingerprint(member: Member) -> str:
             digest.update(hashlib.sha256(shared.read_bytes()).digest())
         except OSError:
             digest.update(b"\0")
-    for path in dependency_closure(member):
+    if locked is not None:
+        canonical_hash(digest, locked)
+    for path in paths:
         digest.update(rel(path).encode("utf-8"))
         digest.update(b"\0")
         hash_tree(digest, path)
