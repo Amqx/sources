@@ -1042,6 +1042,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mangaball"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "mangabat"
 version = "0.1.0"
 dependencies = [
@@ -1410,15 +1420,6 @@ version = "0.1.0"
 dependencies = [
  "aidoku",
  "aidoku-test",
-]
-
-[[package]]
-name = "mythemesite"
-version = "0.1.0"
-dependencies = [
- "aidoku",
- "aidoku-test",
- "mytheme",
 ]
 
 [[package]]
