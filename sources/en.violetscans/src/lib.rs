@@ -3,7 +3,7 @@ use aidoku::{
 	Chapter, ContentRating, DeepLinkHandler, DeepLinkResult, FilterValue, ImageRequestProvider,
 	Manga, MangaPageResult, MangaStatus, Page, PageContent, PageContext, Result, Source, Viewer,
 	alloc::{String, Vec, format, string::ToString, vec::Vec as AllocVec},
-	helpers::{string::StripPrefixOrSelf, uri::QueryParameters},
+	helpers::uri::QueryParameters,
 	imports::{
 		error::AidokuError,
 		html::Element,
@@ -14,6 +14,7 @@ use aidoku::{
 };
 
 const BASE_URL: &str = "https://violetscans.org";
+const OLD_BASE_URL: &str = "https://violetscans.com";
 const MANGA_PATH: &str = "/comics";
 
 struct VioletScans;
@@ -25,7 +26,14 @@ fn img_attr(el: &Element) -> Option<String> {
 }
 
 fn key_from_url(url: &str) -> String {
-	url.strip_prefix_or_self(BASE_URL).into()
+	url.strip_prefix(BASE_URL)
+		.or_else(|| url.strip_prefix(OLD_BASE_URL))
+		.unwrap_or(url)
+		.into()
+}
+
+fn url_from_key(key: &str) -> String {
+	format!("{BASE_URL}{}", key_from_url(key))
 }
 
 fn imptdt_value(html: &Element, label: &str) -> Option<String> {
@@ -193,7 +201,8 @@ impl Source for VioletScans {
 		needs_details: bool,
 		needs_chapters: bool,
 	) -> Result<Manga> {
-		let manga_url = format!("{BASE_URL}{}", manga.key);
+		manga.key = key_from_url(&manga.key);
+		let manga_url = url_from_key(&manga.key);
 		let html = Request::get(&manga_url)?.html()?;
 
 		if needs_details {
@@ -333,7 +342,7 @@ impl Source for VioletScans {
 	}
 
 	fn get_page_list(&self, _manga: Manga, chapter: Chapter) -> Result<Vec<Page>> {
-		let url = format!("{BASE_URL}{}", chapter.key);
+		let url = url_from_key(&chapter.key);
 		let body = Request::get(&url)?.string()?;
 
 		let images = extract_images(&body);
@@ -361,7 +370,10 @@ impl ImageRequestProvider for VioletScans {
 
 impl DeepLinkHandler for VioletScans {
 	fn handle_deep_link(&self, url: String) -> Result<Option<DeepLinkResult>> {
-		let Some(path) = url.strip_prefix(BASE_URL) else {
+		let Some(path) = url
+			.strip_prefix(BASE_URL)
+			.or_else(|| url.strip_prefix(OLD_BASE_URL))
+		else {
 			return Ok(None);
 		};
 		if path.starts_with(MANGA_PATH) {
