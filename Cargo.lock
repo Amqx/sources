@@ -31,7 +31,7 @@ dependencies = [
 [[package]]
 name = "aidoku"
 version = "0.3.0"
-source = "git+https://github.com/Aidoku/aidoku-rs.git?rev=1a6bb691dd67c7151fc76fc852fb5a364d325f72#1a6bb691dd67c7151fc76fc852fb5a364d325f72"
+source = "git+https://github.com/Amqx/aidoku-rs.git?rev=1a6bb691dd67c7151fc76fc852fb5a364d325f72#1a6bb691dd67c7151fc76fc852fb5a364d325f72"
 dependencies = [
  "euclid",
  "hashbrown",
@@ -48,7 +48,7 @@ dependencies = [
 [[package]]
 name = "aidoku-test"
 version = "1.0.0"
-source = "git+https://github.com/Aidoku/aidoku-rs.git?rev=1a6bb691dd67c7151fc76fc852fb5a364d325f72#1a6bb691dd67c7151fc76fc852fb5a364d325f72"
+source = "git+https://github.com/Amqx/aidoku-rs.git?rev=1a6bb691dd67c7151fc76fc852fb5a364d325f72#1a6bb691dd67c7151fc76fc852fb5a364d325f72"
 dependencies = [
  "quote",
  "syn 2.0.119",

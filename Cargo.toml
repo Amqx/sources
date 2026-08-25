@@ -6,13 +6,14 @@ members = ["sources/*", "templates/*"]
 version = "0.1.0"
 edition = "2024"
 
-# Shared dependency versions. Members inherit these with `dep.workspace = true`
-# and add their own `features = [...]` on top where they need extras.
 [workspace.dependencies]
+# Pinned so every source compiles against the same aidoku-rs.
+aidoku = { git = "https://github.com/Amqx/aidoku-rs.git", rev = "1a6bb691dd67c7151fc76fc852fb5a364d325f72", version = "0.3.0" }
+aidoku-test = { git = "https://github.com/Amqx/aidoku-rs.git", rev = "1a6bb691dd67c7151fc76fc852fb5a364d325f72" }
+
+# All workspaces use shared dependency versions. Members inherit 
+# and add their own features when necessary.
 aes = { version = "0.8.4", default-features = false }
-# Pinned so every source compiles against the same aidoku-rs. Bump both revs together.
-aidoku = { git = "https://github.com/Aidoku/aidoku-rs.git", rev = "1a6bb691dd67c7151fc76fc852fb5a364d325f72", version = "0.3.0" }
-aidoku-test = { git = "https://github.com/Aidoku/aidoku-rs.git", rev = "1a6bb691dd67c7151fc76fc852fb5a364d325f72" }
 base64 = { version = "0.22.1", default-features = false, features = ["alloc"] }
 block-padding = "0.3.3"
 cbc = "0.1.2"
