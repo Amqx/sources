@@ -7,7 +7,7 @@ edition.workspace = true
 crate-type = ["cdylib"]
 
 [dependencies]
-aidoku = { workspace = true, features = ["json"] }
+aidoku = { workspace = true, features = ["json", "helpers"] }
 serde = { workspace = true, features = ["derive", "alloc"] }
 
 [dev-dependencies]
