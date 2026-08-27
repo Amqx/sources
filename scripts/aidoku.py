@@ -619,7 +619,6 @@ def cmd_package(args: argparse.Namespace) -> None:
                     TARGET,
                     "-p",
                     member.name,
-                    "--timings",
                 ]
             )
 
