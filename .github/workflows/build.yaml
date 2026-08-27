@@ -23,11 +23,6 @@ jobs:
     permissions:
       contents: write
 
-    env:
-      RUSTC_WRAPPER: sccache
-      SCCACHE_CACHE_SIZE: 2G
-      SCCACHE_VERSION: 0.3.0
-
     runs-on: ubuntu-latest
 
     steps:
@@ -56,26 +51,14 @@ jobs:
             ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}-
             ${{ runner.os }}-cargo-build-
 
-      - name: Cache sccache
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: ~/.cache/sccache
-          key: ${{ runner.os }}-sccache-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-sccache-
-
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
         with:
           toolchain: stable
           targets: wasm32-unknown-unknown
 
-      - name: Install build dependencies
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Aidoku CLI
         run: |
-          sudo apt-get update
-          sudo apt-get install -y sccache
           if ! command -v aidoku >/dev/null 2>&1; then
             cargo install --git https://github.com/amqx/aidoku-rs aidoku-cli
           fi
@@ -115,4 +98,12 @@ jobs:
         with:
           name: gh-pages
           path: public
+          if-no-files-found: ignore
+
+      - name: Upload Cargo timings
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: cargo-timings
+          path: target/cargo-timings
           if-no-files-found: ignore

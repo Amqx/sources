@@ -610,7 +610,18 @@ def cmd_package(args: argparse.Namespace) -> None:
             # One package per invocation: `-p a -p b` unifies their feature sets
             # and would link features into a source that never asked for them.
             # The shared target dir still reuses every common dependency build.
-            run(["cargo", "build", "--release", "--target", TARGET, "-p", member.name])
+            run(
+                [
+                    "cargo",
+                    "build",
+                    "--release",
+                    "--target",
+                    TARGET,
+                    "-p",
+                    member.name,
+                    "--timings",
+                ]
+            )
 
         wasm = wasm_for(member.name)
         if wasm is None:
