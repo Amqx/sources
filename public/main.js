@@ -1,343 +1,239 @@
-document.addEventListener("DOMContentLoaded", () => {
-	const sourceList = document.getElementById("source-list");
-	const searchBar = document.getElementById("source-search");
-	const languageSelect = document.getElementById("language-select");
-	const ratingSelect = document.getElementById("rating-select");
+(() => {
+    "use strict";
 
-	const langMap = {
-		en: "English",
-		es: "Spanish",
-		fr: "French",
-		de: "German",
-		ja: "Japanese",
-		zh: "Chinese",
-		ru: "Russian",
-		it: "Italian",
-		ko: "Korean",
-		pt: "Portuguese",
-		id: "Indonesian",
-		th: "Thai",
-		vi: "Vietnamese",
-		tr: "Turkish",
-		pl: "Polish",
-		ar: "Arabic",
-		hi: "Hindi",
-	};
-	const labelToCode = Object.fromEntries(
-		Object.entries(langMap).map(([code, label]) => [label, code]),
-	);
-	function getLanguageLabel(languages) {
-		if (!Array.isArray(languages) || languages.length === 0)
-			return "Unknown";
-		if (languages.length > 1 || languages.includes("multi"))
-			return "Multi-Language";
-		return langMap[languages[0]] || languages[0];
-	}
+    const REPO_URL = "https://amqx.github.io/sources/index.min.json";
 
-	// store filter state, sources, and the source dom elements
-	const filterState = {
-		query: "",
-		language: "",
-		rating: "",
-	};
-	let allSources = [];
-	let allSourceElements = [];
+    // Show a warning if not on Apple mobile devices
+    const isApple = /iphone|ipad|ipod/i.test(
+        navigator.userAgent,
+    );
+    if (!isApple) {
+        const notice = document.getElementById("platform-notice");
+        if (notice) notice.hidden = false;
+    }
 
-	// filter sources and hide filtered out elements
-	function filterAndShowSources() {
-		let visibleCount = 0;
-		const sectionToVisible = new Map();
-		for (const { source, li, section } of allSourceElements) {
-			// check language
-			const languageLabel = getLanguageLabel(source.languages);
-			const languageMatch =
-				!filterState.language ||
-				filterState.language === "" ||
-				(filterState.language === "Multi-Language" &&
-					languageLabel === "Multi-Language") ||
-				languageLabel === filterState.language ||
-				(filterState.language !== "" &&
-					filterState.language !== "Multi-Language" &&
-					languageLabel === "Multi-Language" &&
-					Array.isArray(source.languages) &&
-					source.languages.includes(
-						labelToCode[filterState.language],
-					));
+    const copyBtn = document.getElementById("copy-btn");
+    if (copyBtn) {
+        let resetTimer;
+        copyBtn.addEventListener("click", async () => {
+            try {
+                await navigator.clipboard.writeText(REPO_URL);
+                copyBtn.textContent = "Copied";
+            } catch {
+                copyBtn.textContent = "Press ⌘/Ctrl+C";
+                const range = document.createRange();
+                range.selectNodeContents(document.getElementById("repo-url"));
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+            clearTimeout(resetTimer);
+            resetTimer = setTimeout(() => {
+                copyBtn.textContent = "Copy";
+            }, 2000);
+        });
+    }
 
-			// check content rating
-			let ratingMatch = true;
-			if (filterState.rating === "safe") {
-				ratingMatch =
-					!source.contentRating || source.contentRating === 0;
-			} else if (filterState.rating === "contains-nsfw") {
-				ratingMatch = source.contentRating === 1;
-			} else if (filterState.rating === "nsfw") {
-				ratingMatch = source.contentRating === 2;
-			}
+    // Source list
+    const listEl = document.getElementById("sources");
+    const statusEl = document.getElementById("status");
+    const countEl = document.getElementById("count");
+    const searchEl = document.getElementById("search");
 
-			// check search query (match name, alt name, or url)
-			const q = filterState.query.trim().toLowerCase();
-			const nameMatch =
-				!q || (source.name && source.name.toLowerCase().includes(q));
-			const altNames = Array.isArray(source.altNames)
-				? source.altNames
-				: [];
-			const altMatch = !q
-				? true
-				: altNames.some((alt) => alt && alt.toLowerCase().includes(q));
-			const urlMatch = !q
-				? true
-				: source.baseURL && source.baseURL.toLowerCase().includes(q);
-			const queryMatch = nameMatch || altMatch || urlMatch;
+    const DOWNLOAD_ICON =
+        '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v8m0 0 3-3m-3 3-3-3M2.5 12.5h11"/></svg>';
 
-			const shouldShow = languageMatch && ratingMatch && queryMatch;
-			li.style.display = shouldShow ? "" : "none";
-			if (shouldShow) {
-				visibleCount++;
-				sectionToVisible.set(
-					section,
-					(sectionToVisible.get(section) || 0) + 1,
-				);
-			}
-		}
+    // languages
+    function languageLabel(languages) {
+        if (!Array.isArray(languages) || languages.length === 0) return "";
+        const real = languages.filter((l) => l !== "multi" && l !== "All");
+        if (languages.length > real.length || real.length > 1) return "MULTI";
+        return real[0].toUpperCase();
+    }
 
-		// hide sections if they don't have any visible children
-		const allSections = document.querySelectorAll(".language-section");
-		allSections.forEach((section) => {
-			const visible = sectionToVisible.get(section) || 0;
-			section.style.display = visible > 0 ? "" : "none";
-		});
+    function siteLabel(baseURL) {
+        if (!baseURL) return "";
+        return baseURL.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/$/, "");
+    }
 
-		// update total source count
-		const totalCountSpan = document.querySelector(".total-count");
-		if (totalCountSpan) {
-			totalCountSpan.textContent = "Total: " + visibleCount;
-		}
-	}
+    function searchText(source) {
+        return [
+            source.name,
+            source.id,
+            siteLabel(source.baseURL),
+            ...(Array.isArray(source.altNames) ? source.altNames : []),
+            ...(Array.isArray(source.languages) ? source.languages : []),
+            languageLabel(source.languages),
+        ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+    }
 
-	// add event listeners for filter changes
-	searchBar.addEventListener("input", (e) => {
-		filterState.query = e.target.value;
-		filterAndShowSources();
-	});
-	languageSelect.addEventListener("change", (e) => {
-		filterState.language = e.target.value;
-		filterAndShowSources();
-	});
-	ratingSelect.addEventListener("change", (e) => {
-		filterState.rating = e.target.value;
-		filterAndShowSources();
-	});
+    function badge(text, className, title) {
+        const el = document.createElement("span");
+        el.className = className ? "badge " + className : "badge";
+        el.textContent = text;
+        if (title) el.title = title;
+        return el;
+    }
 
-	// fetch and render initial sources from index.min.json
-	fetch("index.min.json")
-		.then((response) => {
-			if (!response.ok) throw new Error("Failed to load sources");
-			return response.json();
-		})
-		.then((data) => {
-			if (
-				!data.sources ||
-				!Array.isArray(data.sources) ||
-				data.sources.length === 0
-			) {
-				sourceList.textContent = "No sources found.";
-				return;
-			}
+    function render(source) {
+        const li = document.createElement("li");
+        li.className = "source";
 
-			allSources = data.sources;
+        if (source.iconURL) {
+            const icon = document.createElement("img");
+            icon.className = "icon";
+            icon.src = source.iconURL;
+            icon.alt = "";
+            icon.loading = "lazy";
+            icon.decoding = "async";
+            li.appendChild(icon);
+        }
 
-			// populate language dropdown
-			const languageSet = new Set();
-			allSources.forEach((source) => {
-				const label = getLanguageLabel(source.languages);
-				languageSet.add(label);
-			});
-			const languageList = Array.from(languageSet).sort((a, b) => {
-				if (a === "Multi-Language") return -1;
-				if (b === "Multi-Language") return 1;
-				return a.localeCompare(b);
-			});
-			languageList.forEach((lang) => {
-				if (
-					[...languageSelect.options].some(
-						(opt) => opt.value === lang,
-					)
-				)
-					return;
-				const opt = document.createElement("option");
-				opt.value = lang;
-				opt.textContent = lang;
-				languageSelect.appendChild(opt);
-			});
+        const meta = document.createElement("div");
+        meta.className = "meta";
 
-			// apply language label to sources
-			const sources = allSources.map((source) => {
-				let languageLabel = getLanguageLabel(source.languages);
-				let sortLang =
-					languageLabel === "Multi-Language"
-						? ""
-						: languageLabel.toLowerCase();
-				return {
-					...source,
-					languageLabel,
-					sortLang,
-				};
-			});
+        const titleRow = document.createElement("div");
+        titleRow.className = "title-row";
 
-			// sort by language and name
-			sources.sort((a, b) => {
-				if (a.sortLang !== b.sortLang) {
-					return a.sortLang.localeCompare(b.sortLang);
-				}
-				// sort alphabetically if language is the same
-				return a.name.localeCompare(b.name);
-			});
+        const name = document.createElement("span");
+        name.className = "name";
+        name.textContent = source.name;
+        titleRow.appendChild(name);
 
-			// group by language label
-			const grouped = {};
-			sources.forEach((source) => {
-				if (!grouped[source.languageLabel]) {
-					grouped[source.languageLabel] = [];
-				}
-				grouped[source.languageLabel].push(source);
-			});
+        const lang = languageLabel(source.languages);
+        if (lang) {
+            titleRow.appendChild(
+                badge(
+                    lang,
+                    "",
+                    lang === "MULTI"
+                        ? "Multiple languages"
+                        : (source.languages || []).join(", "),
+                ),
+            );
+        }
 
-			// render source cells
-			sourceList.innerHTML = "";
-			allSourceElements = [];
-			let isFirst = true;
-			Object.keys(grouped).forEach((language) => {
-				// create a section for the language group
-				const section = document.createElement("section");
-				section.className = "language-section";
-				section.setAttribute("data-lang-label", language);
+        if (source.contentRating === 1) {
+            titleRow.appendChild(
+                badge("17+", "badge-17", "Contains NSFW content"),
+            );
+        } else if (source.contentRating === 2) {
+            titleRow.appendChild(
+                badge("18+", "badge-18", "Primarily NSFW content"),
+            );
+        }
 
-				// language header
-				const headerRow = document.createElement("div");
-				headerRow.className = "language-header-row";
-				const langHeader = document.createElement("h2");
-				langHeader.textContent = language;
+        meta.appendChild(titleRow);
 
-				headerRow.appendChild(langHeader);
-				section.appendChild(headerRow);
+        const sub = document.createElement("div");
+        sub.className = "sub";
 
-				// source list
-				const ul = document.createElement("ul");
-				grouped[language].forEach((source) => {
-					const li = document.createElement("li");
-					li.className = "source-row";
-					li.setAttribute("data-name", source.name.toLowerCase());
-					li.setAttribute("data-version", String(source.version));
-					li.setAttribute(
-						"data-languages",
-						(source.languages || []).join(","),
-					);
-					li.setAttribute(
-						"data-content-rating",
-						source.contentRating != null
-							? String(source.contentRating)
-							: "0",
-					);
-					li.setAttribute("data-lang-label", language);
+        const ver = document.createElement("span");
+        ver.className = "ver";
+        ver.textContent = "v" + source.version;
+        sub.appendChild(ver);
 
-					const leftDiv = document.createElement("div");
-					leftDiv.className = "source-left";
+        const site = siteLabel(source.baseURL);
+        if (site) {
+            const dot = document.createElement("span");
+            dot.textContent = "·";
+            dot.setAttribute("aria-hidden", "true");
+            sub.appendChild(dot);
 
-					const infoWrapper = document.createElement("div");
-					infoWrapper.className = "source-info-wrapper";
+            const siteEl = document.createElement("a");
+            siteEl.className = "site";
+            siteEl.href = source.baseURL;
+            siteEl.target = "_blank";
+            siteEl.rel = "noopener noreferrer";
+            siteEl.title = source.baseURL;
+            siteEl.textContent = site;
+            sub.appendChild(siteEl);
+        }
 
-					if (source.iconURL) {
-						const icon = document.createElement("img");
-						icon.src = source.iconURL;
-						icon.alt = source.name + " icon";
-						icon.className = "source-icon";
-						infoWrapper.appendChild(icon);
-					}
+        meta.appendChild(sub);
+        li.appendChild(meta);
 
-					const infoRowStack = document.createElement("div");
-					infoRowStack.className = "source-info-row-stack";
+        const dl = document.createElement("a");
+        dl.className = "dl";
+        dl.href = source.downloadURL;
+        dl.setAttribute("download", "");
+        dl.title = "Download " + source.name + " v" + source.version;
+        dl.setAttribute(
+            "aria-label",
+            "Download " + source.name + " v" + source.version,
+        );
+        dl.innerHTML = DOWNLOAD_ICON;
+        li.appendChild(dl);
 
-					const titleRow = document.createElement("div");
-					titleRow.className = "source-title-row";
+        return li;
+    }
 
-					const name = document.createElement("span");
-					name.textContent = source.name;
-					titleRow.appendChild(name);
+    let entries = [];
 
-					const version = document.createElement("span");
-					version.textContent = " v" + source.version;
-					version.className = "source-version";
-					titleRow.appendChild(version);
+    function applyFilter() {
+        const query = searchEl.value.trim().toLowerCase();
+        const terms = query.split(/\s+/).filter(Boolean);
+        let visible = 0;
+        let lastShown = null;
 
-					let ratingBadge = null;
-					if (
-						source.contentRating === 1 ||
-						source.contentRating === 2
-					) {
-						ratingBadge = document.createElement("span");
-						ratingBadge.className =
-							"source-rating-badge " +
-							(source.contentRating === 1
-								? "source-rating-17"
-								: "source-rating-18");
-						ratingBadge.textContent =
-							source.contentRating === 1 ? "17+" : "18+";
-						const tooltip = document.createElement("span");
-						tooltip.className = "tooltip";
-						tooltip.textContent =
-							source.contentRating === 1
-								? "This source contains NSFW content"
-								: "This source contains primarily NSFW content";
-						ratingBadge.appendChild(tooltip);
-						ratingBadge.addEventListener("mouseenter", () => {
-							tooltip.style.opacity = "1";
-							tooltip.style.pointerEvents = "auto";
-						});
-						ratingBadge.addEventListener("mouseleave", () => {
-							tooltip.style.opacity = "0";
-							tooltip.style.pointerEvents = "none";
-						});
-					}
-					if (ratingBadge) titleRow.appendChild(ratingBadge);
+        for (const entry of entries) {
+            const show = terms.every((term) => entry.haystack.includes(term));
+            entry.li.hidden = !show;
+            entry.li.classList.remove("last-visible");
+            if (show) {
+                visible++;
+                lastShown = entry.li;
+            }
+        }
 
-					infoRowStack.appendChild(titleRow);
+        if (lastShown) lastShown.classList.add("last-visible");
 
-					if (source.baseURL) {
-						const urlRow = document.createElement("div");
-						urlRow.className = "source-url";
-						urlRow.textContent = source.baseURL;
-						infoRowStack.appendChild(urlRow);
-					}
+        countEl.textContent = query
+            ? visible + " of " + entries.length
+            : String(entries.length);
 
-					infoWrapper.appendChild(infoRowStack);
-					leftDiv.appendChild(infoWrapper);
-					const rightDiv = document.createElement("div");
-					rightDiv.className = "source-right";
+        if (visible === 0) {
+            statusEl.hidden = false;
+            statusEl.textContent = "No sources match “" + searchEl.value.trim() + "”.";
+        } else {
+            statusEl.hidden = true;
+        }
+    }
 
-					const button = document.createElement("a");
-					button.href = source.downloadURL;
-					button.textContent = "↓";
-					button.setAttribute("download", "");
-					button.className = "source-download";
-					rightDiv.appendChild(button);
+    fetch("index.min.json")
+        .then((response) => {
+            if (!response.ok) throw new Error("HTTP " + response.status);
+            return response.json();
+        })
+        .then((data) => {
+            const sources = Array.isArray(data.sources) ? data.sources : [];
+            if (sources.length === 0) {
+                statusEl.textContent = "No sources published yet.";
+                return;
+            }
 
-					li.appendChild(leftDiv);
-					li.appendChild(rightDiv);
+            sources.sort((a, b) =>
+                a.name.localeCompare(b.name, undefined, {sensitivity: "base"}),
+            );
 
-					ul.appendChild(li);
+            const fragment = document.createDocumentFragment();
+            entries = sources.map((source) => {
+                const li = render(source);
+                fragment.appendChild(li);
+                return {li, haystack: searchText(source)};
+            });
+            listEl.appendChild(fragment);
 
-					allSourceElements.push({ source, li, section });
-				});
-				section.appendChild(ul);
-				sourceList.appendChild(section);
-			});
-
-			// initial filter
-			filterAndShowSources();
-		})
-		.catch((error) => {
-			sourceList.textContent = "Error loading sources.";
-			console.error(error);
-		});
-});
+            searchEl.addEventListener("input", applyFilter);
+            applyFilter();
+        })
+        .catch((error) => {
+            statusEl.hidden = false;
+            statusEl.textContent =
+                "Could not load the source list. Try reloading the page.";
+            console.error(error);
+        });
+})();

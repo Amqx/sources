@@ -12,6 +12,7 @@ on:
       - "Cargo.lock"
       - ".cargo/**"
       - "scripts/**"
+      - "public/**"
       - ".github/workflows/build.yaml"
 
 concurrency:
