@@ -108,8 +108,47 @@ a:hover {
 }
 
 /* hero */
+.hero-top {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	margin-bottom: 0.4rem;
+}
+
+.gh-link {
+	flex: none;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	padding: 0.35rem 0.7rem;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--surface);
+	color: var(--muted);
+	font-size: 0.8125rem;
+	font-weight: 550;
+	text-decoration: none;
+	transition:
+		background 0.15s ease,
+		border-color 0.15s ease,
+		color 0.15s ease;
+}
+
+.gh-link:hover {
+	background: var(--surface-hover);
+	color: var(--fg);
+}
+
+.gh-link svg {
+	width: 16px;
+	height: 16px;
+	display: block;
+	fill: currentColor;
+}
+
 .hero h1 {
-	margin: 0 0 0.4rem;
+	margin: 0;
 	font-size: clamp(1.75rem, 5vw, 2.25rem);
 	font-weight: 680;
 	letter-spacing: -0.02em;
@@ -418,6 +457,22 @@ footer {
 
 	.btn {
 		width: 100%;
+	}
+
+	.gh-link {
+		padding: 0.3rem 0.5rem;
+	}
+
+	.gh-link span {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		margin: -1px;
+		padding: 0;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
+		border: 0;
 	}
 
 	.icon {
