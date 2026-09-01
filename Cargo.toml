@@ -6,6 +6,13 @@ members = ["sources/*", "templates/*"]
 version = "0.1.0"
 edition = "2024"
 
+[workspace.metadata.aidoku]
+# The one minAppVersion every source declares. It belongs next to the
+# aidoku-rs pin below because that pin is what decides it: one workspace,
+# one aidoku-rs, one app floor. Roll it out with:
+#     ./scripts/aidoku.py min-app-version --set <version>
+min-app-version = "0.8.4"
+
 [workspace.dependencies]
 # Pinned so every source compiles against the same aidoku-rs.
 aidoku = { git = "https://github.com/Amqx/aidoku-rs.git", rev = "1a6bb691dd67c7151fc76fc852fb5a364d325f72", version = "0.3.0" }
