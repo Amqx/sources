@@ -21,7 +21,7 @@ def process_image(
     rgb_img = combined.convert("RGB")
 
     # Resize to target size
-    resized = rgb_img.resize(size, Image.LANCZOS)
+    resized = rgb_img.resize(size, Image.Resampling.LANCZOS)
 
     # Determine output path
     if output_path is None:
@@ -30,6 +30,7 @@ def process_image(
 
     resized.save(output_path)
     print(f"Saved: {output_path}")
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
