@@ -5,7 +5,7 @@
 		"version": 9,
 		"url": "https://mangalib.me",
 		"contentRating": 1,
-		"minAppVersion": "0.7.1",
+		"minAppVersion": "0.8.4",
 		"languages": ["ru"]
 	},
 	"listings": [

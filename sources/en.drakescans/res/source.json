@@ -5,6 +5,7 @@
 		"version": 1,
 		"url": "https://drakecomic.org",
 		"contentRating": 1,
-		"languages": ["en"]
+		"languages": ["en"],
+		"minAppVersion": "0.8.4"
 	}
 }

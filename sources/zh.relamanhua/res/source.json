@@ -10,7 +10,8 @@
 			"https://www.relamanhua.org"
 		],
 		"contentRating": 1,
-		"languages": ["zh"]
+		"languages": ["zh"],
+		"minAppVersion": "0.8.4"
 	},
 	"config": {
 		"hidesFiltersWhileSearching": true,

@@ -60,7 +60,8 @@
 			"tr",
 			"uk",
 			"vi"
-		]
+		],
+		"minAppVersion": "0.8.4"
 	},
 	"listings": [
 		{

@@ -5,7 +5,7 @@
         "altNames": ["Shojo Scans"],
         "version": 2,
         "urls": ["https://violetscans.com", "https://violetscans.org"],
-        "minAppVersion": "0.7.1",
+        "minAppVersion": "0.8.4",
         "contentRating": 0,
         "languages": ["en"]
     }

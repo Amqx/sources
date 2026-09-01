@@ -5,7 +5,7 @@
 		"version": 1,
 		"url": "https://grabber.zone",
 		"languages": ["multi"],
-		"minAppVersion": "0.7.1"
+		"minAppVersion": "0.8.4"
 	},
 	"config": {
 		"hidesFiltersWhileSearching": true

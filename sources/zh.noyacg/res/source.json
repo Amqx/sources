@@ -7,7 +7,8 @@
 			"zh"
 		],
 		"contentRating": 1,
-		"url": "https://beta.noyteam.online"
+		"url": "https://beta.noyteam.online",
+		"minAppVersion": "0.8.4"
 	},
 	"listings": [
 		{

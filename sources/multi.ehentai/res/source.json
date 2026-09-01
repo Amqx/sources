@@ -22,7 +22,8 @@
 			"es",
 			"th",
 			"vi"
-		]
+		],
+		"minAppVersion": "0.8.4"
 	},
 	"config": {
 		"languageSelectType": "single",

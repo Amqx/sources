@@ -10,7 +10,8 @@
 		"contentRating": 0,
 		"languages": [
 			"zh"
-		]
+		],
+		"minAppVersion": "0.8.4"
 	},
 	"config": {
 		"hidesFiltersWhileSearching": true,

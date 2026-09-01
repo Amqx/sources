@@ -5,7 +5,8 @@
 		"version": 1,
 		"url": "https://komiic.com",
 		"contentRating": 0,
-		"languages": ["zh"]
+		"languages": ["zh"],
+		"minAppVersion": "0.8.4"
 	},
 	"listings": [
 		{

@@ -5,7 +5,8 @@
 		"version": 2,
 		"url": "https://rizzfables.com",
 		"contentRating": 0,
-		"languages": ["en"]
+		"languages": ["en"],
+		"minAppVersion": "0.8.4"
 	},
 	"config": {
 		"breakingChangeVersion": 2

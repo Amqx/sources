@@ -5,7 +5,8 @@
 		"version": 3,
 		"url": "https://mangamura.me",
 		"contentRating": 1,
-		"languages": ["ja"]
+		"languages": ["ja"],
+		"minAppVersion": "0.8.4"
 	},
 	"listings": [
 		{

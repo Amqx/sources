@@ -5,7 +5,8 @@
 		"version": 12,
 		"url": "https://boylove.cc",
 		"contentRating": 2,
-		"languages": ["zh"]
+		"languages": ["zh"],
+		"minAppVersion": "0.8.4"
 	},
 	"listings": [
 		{ "id": "11", "name": "最新" },

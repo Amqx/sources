@@ -7,10 +7,7 @@ version = "0.1.0"
 edition = "2024"
 
 [workspace.metadata.aidoku]
-# The one minAppVersion every source declares. It belongs next to the
-# aidoku-rs pin below because that pin is what decides it: one workspace,
-# one aidoku-rs, one app floor. Roll it out with:
-#     ./scripts/aidoku.py min-app-version --set <version>
+# Synced across all extensions
 min-app-version = "0.8.4"
 
 [workspace.dependencies]
@@ -18,7 +15,7 @@ min-app-version = "0.8.4"
 aidoku = { git = "https://github.com/Amqx/aidoku-rs.git", rev = "1a6bb691dd67c7151fc76fc852fb5a364d325f72", version = "0.3.0" }
 aidoku-test = { git = "https://github.com/Amqx/aidoku-rs.git", rev = "1a6bb691dd67c7151fc76fc852fb5a364d325f72" }
 
-# All workspaces use shared dependency versions. Members inherit 
+# All workspaces use shared dependency versions. Members inherit
 # and add their own features when necessary.
 aes = { version = "0.8.4", default-features = false }
 base64 = { version = "0.22.1", default-features = false, features = ["alloc"] }

@@ -14,7 +14,8 @@
 			"https://copy20.com"
 		],
 		"contentRating": 1,
-		"languages": ["zh"]
+		"languages": ["zh"],
+		"minAppVersion": "0.8.4"
 	},
 	"config": {
 		"allowsBaseUrlSelect": true,

@@ -46,11 +46,12 @@ TARGET = "wasm32-unknown-unknown"
 SOURCE_LIST_NAME = "Amqx's Sources"
 MANIFEST_NAME = "build-manifest.json"
 CLI_INSTALL_HINT = (
-    "install it with: cargo install --git https://github.com/Aidoku/aidoku-rs aidoku-cli"
+    "install it with: cargo install --git https://github.com/Amqx/aidoku-rs aidoku-cli"
 )
 
 
 # ---------------------------------------------------------------- utilities
+
 
 def die(msg: str) -> NoReturn:
     print("error: {}".format(msg), file=sys.stderr)
@@ -107,6 +108,7 @@ def forward(command: str, args: list[str]) -> None:
 
 # ------------------------------------------------------------ workspace model
 
+
 class Member:
     """A source or template crate in the workspace."""
 
@@ -137,7 +139,7 @@ class Member:
             with self.source_json.open(encoding="utf-8") as f:
                 info = json.load(f)["info"]
             return (info["id"], info["version"])
-        except (OSError, ValueError, KeyError):
+        except OSError, ValueError, KeyError:
             return None
 
     def __str__(self) -> str:
@@ -165,7 +167,10 @@ def read_package_name(manifest: Path) -> str | None:
 
 def members(kind: str | None = None) -> list[Member]:
     found = []
-    for group, directory in (("source", ROOT / "sources"), ("template", ROOT / "templates")):
+    for group, directory in (
+        ("source", ROOT / "sources"),
+        ("template", ROOT / "templates"),
+    ):
         if kind not in (None, group) or not directory.is_dir():
             continue
         for path in sorted(directory.iterdir()):
@@ -223,9 +228,11 @@ def package_files(targets: Sequence[str]) -> list[str]:
             continue
         member = resolve([target], "source")[0]
         if not member.package.is_file():
-            die("{} has not been packaged yet; run `scripts/aidoku.py package {}`".format(
-                member, target
-            ))
+            die(
+                "{} has not been packaged yet; run `scripts/aidoku.py package {}`".format(
+                    member, target
+                )
+            )
         files.append(str(member.package))
     return files
 
@@ -248,7 +255,7 @@ def toolchain_id() -> str:
                     ["rustc", "--version"], capture_output=True, text=True, check=True
                 )
                 _TOOLCHAIN_ID = result.stdout.strip()
-            except (OSError, subprocess.CalledProcessError):
+            except OSError, subprocess.CalledProcessError:
                 pass
     return _TOOLCHAIN_ID
 
@@ -268,7 +275,7 @@ def workspace_paths() -> dict[str, Path]:
         try:
             with (ROOT / "Cargo.toml").open("rb") as f:
                 manifest = tomllib.load(f)
-        except (OSError, tomllib.TOMLDecodeError):
+        except OSError, tomllib.TOMLDecodeError:
             manifest = {}
         workspace = manifest.get("workspace", {})
         for name, spec in workspace.get("dependencies", {}).items():
@@ -285,7 +292,7 @@ def load_toml(path: Path) -> dict[str, Any]:
     try:
         with path.open("rb") as f:
             return tomllib.load(f)
-    except (OSError, tomllib.TOMLDecodeError):
+    except OSError, tomllib.TOMLDecodeError:
         return {}
 
 
@@ -369,7 +376,9 @@ def hash_tree(digest: "hashlib._Hash", root: Path) -> None:
 
 def canonical_hash(digest: "hashlib._Hash", value: Any) -> None:
     """Hash TOML-derived data without making comments or ordering significant."""
-    digest.update(json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8"))
+    digest.update(
+        json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    )
     digest.update(b"\0")
 
 
@@ -384,7 +393,9 @@ def root_build_config(paths: Sequence[Path]) -> dict[str, Any]:
     return {
         "resolver": workspace.get("resolver"),
         "package": workspace.get("package", {}),
-        "dependencies": {key: dependencies[key] for key in sorted(keys) if key in dependencies},
+        "dependencies": {
+            key: dependencies[key] for key in sorted(keys) if key in dependencies
+        },
         "profile": manifest.get("profile", {}),
         "patch": manifest.get("patch", {}),
         "replace": manifest.get("replace", {}),
@@ -407,7 +418,9 @@ def lock_ref(ref: str, packages: Sequence[dict[str, Any]]) -> dict[str, Any] | N
     return matches[0] if len(matches) == 1 else None
 
 
-def lock_package_for_member(path: Path, packages: Sequence[dict[str, Any]]) -> dict[str, Any] | None:
+def lock_package_for_member(
+    path: Path, packages: Sequence[dict[str, Any]]
+) -> dict[str, Any] | None:
     name = read_package_name(path / "Cargo.toml")
     matches = [p for p in packages if p.get("name") == name and "source" not in p]
     return matches[0] if len(matches) == 1 else None
@@ -435,7 +448,10 @@ def lock_dependency_closure(paths: Sequence[Path]) -> list[dict[str, Any]] | Non
             package = lock_ref(ref, packages)
             if package is None:
                 return None
-            if package.get("name") in direct_names and package.get("name") not in local_names:
+            if (
+                package.get("name") in direct_names
+                and package.get("name") not in local_names
+            ):
                 queue.append(package)
 
     seen: set[tuple[Any, Any, Any]] = set()
@@ -501,7 +517,7 @@ def read_manifest(path: Path) -> dict[str, str]:
     try:
         with path.open(encoding="utf-8") as f:
             loaded = json.load(f)
-    except (OSError, ValueError):
+    except OSError, ValueError:
         return {}
     if not isinstance(loaded, dict):
         return {}
@@ -515,7 +531,7 @@ def aix_source_key(path: Path) -> tuple[str, Any] | None:
             with archive.open("Payload/source.json") as f:
                 info = json.loads(f.read().decode("utf-8"))["info"]
         return (info["id"], info["version"])
-    except (OSError, ValueError, KeyError, zipfile.BadZipFile):
+    except OSError, ValueError, KeyError, zipfile.BadZipFile:
         return None
 
 
@@ -561,6 +577,7 @@ class Cache:
 
 
 # -------------------------------------------------------------------- package
+
 
 def wasm_for(name: str) -> Path | None:
     """cargo writes lib artifacts with hyphens replaced by underscores."""
@@ -658,6 +675,7 @@ def cmd_manifest(args: argparse.Namespace) -> None:
 
 # -------------------------------------------- build / verify / serve / logcat
 
+
 def cmd_build(args: argparse.Namespace) -> None:
     files = package_files(args.files)
     output = str(Path(args.output).resolve())
@@ -696,10 +714,199 @@ def cmd_list(args: argparse.Namespace) -> None:
         info("  ".join(value.ljust(widths[i]) for i, value in enumerate(row)).rstrip())
 
 
+# ------------------------------------------------------------ minAppVersion
+
+VERSION_NUMBER = re.compile(r"\d+(?:\.\d+)*")
+MIN_APP_VERSION = re.compile(r'("minAppVersion"\s*:\s*)"[^"]*"')
+MIN_APP_VERSION_KEY = re.compile(r'(?m)^([ \t]*min-app-version\s*=\s*)"[^"]*"')
+
+
+def workspace_min_app_version() -> str:
+    """The `minAppVersion` every source is expected to declare.
+
+    It lives in `[workspace.metadata.aidoku]` because the aidoku-rs rev pinned
+    a few lines below it is what decides the floor, and every member compiles
+    against that one rev. Cargo ignores `workspace.metadata`, so it costs
+    nothing to park it there.
+    """
+    value = (
+        load_toml(ROOT / "Cargo.toml")
+        .get("workspace", {})
+        .get("metadata", {})
+        .get("aidoku", {})
+        .get("min-app-version")
+    )
+    if not isinstance(value, str) or not value:
+        die("no [workspace.metadata.aidoku] min-app-version in the root Cargo.toml")
+    return value
+
+
+def set_workspace_min_app_version(value: str) -> None:
+    """Rewrite the canonical value, touching nothing else in the manifest."""
+    path = ROOT / "Cargo.toml"
+    with path.open(encoding="utf-8", newline="") as f:
+        text = f.read()
+    header = re.search(r"(?m)^\[workspace\.metadata\.aidoku\][^\n]*\n", text)
+    if not header:
+        die("no [workspace.metadata.aidoku] table in {}".format(rel(path)))
+    following = re.search(r"(?m)^\[", text[header.end() :])
+    stop = len(text) if following is None else header.end() + following.start()
+    table, count = MIN_APP_VERSION_KEY.subn(
+        lambda m: '{}"{}"'.format(m.group(1), value), text[header.end() : stop], count=1
+    )
+    if not count:
+        die("no min-app-version key under [workspace.metadata.aidoku]")
+    with path.open("w", encoding="utf-8", newline="") as f:
+        f.write(text[: header.end()] + table + text[stop:])
+
+
+def info_span(text: str) -> tuple[int, int] | None:
+    """Indices of the braces opening and closing the `info` object."""
+    opening = re.search(r'"info"\s*:\s*\{', text)
+    if not opening:
+        return None
+    depth = 0
+    quoted = False
+    escaped = False
+    start = opening.end() - 1
+    for index in range(start, len(text)):
+        char = text[index]
+        if escaped:
+            escaped = False
+        elif char == "\\":
+            escaped = quoted
+        elif char == '"':
+            quoted = not quoted
+        elif not quoted:
+            if char == "{":
+                depth += 1
+            elif char == "}":
+                depth -= 1
+                if depth == 0:
+                    return (start, index)
+    return None
+
+
+def source_min_app_version(path: Path) -> str | None:
+    """The declared value, or None if the key isn't there.
+
+    A file that cannot be read or parsed is an error rather than a `None`: it
+    would otherwise be reported as merely missing the key, and then handed to
+    the patcher below, which cannot make sense of it either.
+    """
+    try:
+        with path.open(encoding="utf-8") as f:
+            document = json.load(f)
+    except OSError as error:
+        die("cannot read {}: {}".format(rel(path), error))
+    except ValueError as error:
+        die("{} is not valid JSON: {}".format(rel(path), error))
+    value = document.get("info", {}).get("minAppVersion")
+    return value if isinstance(value, str) else None
+
+
+def write_min_app_version(path: Path, value: str) -> bool:
+    """Set `info.minAppVersion`, returning whether the file changed.
+
+    Reserializing would reformat every source: they are tab-indented, CRLF in a
+    Windows checkout, and inconsistent about whether short arrays are exploded.
+    So an existing key keeps its position and only its value is swapped, and a
+    missing one is appended as the last key of `info` — where the sources that
+    already have it overwhelmingly keep it.
+
+    The edit is confined to the `info` block, so a `minAppVersion` elsewhere in
+    the document can't absorb it and leave the real one untouched, and the
+    result is parsed before it is written, so a splice that got its offsets
+    wrong fails loudly instead of committing a broken source.
+    """
+    with path.open(encoding="utf-8", newline="") as f:
+        text = f.read()
+    try:
+        json.loads(text)
+    except ValueError as error:
+        die("{} is not valid JSON: {}".format(rel(path), error))
+
+    span = info_span(text)
+    if span is None:
+        die("no info object in {}".format(rel(path)))
+    start, end = span
+
+    block, count = MIN_APP_VERSION.subn(
+        lambda m: '{}"{}"'.format(m.group(1), value), text[start:end], count=1
+    )
+    if not count:
+        last = len(block.rstrip()) - 1  # end of the final property's value
+        if last < 0 or block[last] == "{":
+            die("empty info object in {}".format(rel(path)))
+        line = block[block.rfind("\n", 0, last) + 1 : last + 1]
+        indent = line[: len(line) - len(line.lstrip())]
+        newline = "\r\n" if "\r\n" in text else "\n"
+        block = '{},{}{}"minAppVersion": "{}"{}'.format(
+            block[: last + 1], newline, indent, value, block[last + 1 :]
+        )
+
+    patched = text[:start] + block + text[end:]
+    if patched == text:
+        return False
+    try:
+        json.loads(patched)
+    except ValueError as error:
+        die("patching {} produced invalid JSON: {}".format(rel(path), error))
+    with path.open("w", encoding="utf-8", newline="") as f:
+        f.write(patched)
+    return True
+
+
+def cmd_min_app_version(args: argparse.Namespace) -> None:
+    """Not an upstream command. Hold every source to one `minAppVersion`.
+
+    Nothing per source decides this value — they all build against the single
+    aidoku-rs rev the workspace pins — so it is kept in the root manifest and
+    stamped out from there. Run bare it only reports drift and exits non-zero,
+    which is what makes it usable as a check.
+    """
+    if args.set is not None:
+        if args.paths:
+            die(
+                "--set changes the value for the whole workspace; drop the source arguments"
+            )
+        if not VERSION_NUMBER.fullmatch(args.set):
+            die("'{}' is not a version number".format(args.set))
+        set_workspace_min_app_version(args.set)
+        info("root Cargo.toml: min-app-version = {}".format(args.set))
+
+    value = workspace_min_app_version()
+    sources = resolve(args.paths, "source")
+
+    if args.set is None and not args.sync:
+        drift = [(m, source_min_app_version(m.source_json)) for m in sources]
+        drift = [(m, found) for m, found in drift if found != value]
+        for member, found in drift:
+            info("{}: {}".format(member, found or "missing"))
+        if drift:
+            die(
+                "{} of {} sources are not on {}; rerun with --sync".format(
+                    len(drift), len(sources), value
+                )
+            )
+        info("all {} sources are on {}".format(len(sources), value))
+        return
+
+    changed = [m for m in sources if write_min_app_version(m.source_json, value)]
+    for member in changed:
+        info("updated {}".format(member))
+    info(
+        "{} of {} sources changed; all now on {}".format(
+            len(changed), len(sources), value
+        )
+    )
+
+
 # ----------------------------------------------------------------------- init
 
 # ISO 639 codes accepted by the app, copied from the upstream CLI.
-LANGUAGE_CODES = set("""
+LANGUAGE_CODES = set(
+    """
 ab aa af ak sq am ar an hy as av ae ay az bm ba eu be bn bi bs br bg my ca ch ce
 ny zh cu cv kw co cr hr cs da dv nl dz en eo et ee fo fj fi fr fy ff gd gl lg ka
 de el kl gn gu ht ha he hz hi ho hu is io ig id ia ie iu ik ga it ja jv kn kr ks
@@ -707,7 +914,8 @@ kk km ki rw ky kv kg ko kj ku lo la lv li ln lt lu lb mk mg ms ml mt gv mi mr mh
 mn na nv nd nr ng ne no nb nn oc oj or om os pi ps fa pl pt pa qu ro rm rn ru se
 sm sg sa sc sr sn sd si sk sl so st es su sw ss sv tl ty tg ta tt te th bo ti to
 ts tn tr tk tw ug uk ur uz ve vi vo wa cy wo xh ii yi yo za zu
-""".split()) | {"ceb", "fil", "es-419", "pt-BR", "zh-Hans", "zh-Hant"}
+""".split()
+) | {"ceb", "fil", "es-419", "pt-BR", "zh-Hans", "zh-Hant"}
 
 # The upstream list spells this one `pt-br`, but all eight Brazilian sources in
 # this repo use `pt-BR`, so accept either spelling and write the repo's.
@@ -716,6 +924,7 @@ LANGUAGE_ALIASES = {code.lower(): code for code in LANGUAGE_CODES}
 
 def normalize_language(code: str) -> str:
     return LANGUAGE_ALIASES.get(code.lower(), code)
+
 
 CONTENT_RATINGS: dict[str, int] = {"safe": 0, "contains-nsfw": 1, "primarily-nsfw": 2}
 
@@ -751,7 +960,7 @@ aidoku-test.workspace = true
 """
 
 # Kept in sync by hand with crates/cli/src/supporting/templates in aidoku-rs.
-SOURCE_LIB = '''#![no_std]
+SOURCE_LIB = """#![no_std]
 use aidoku::{
 \tAidokuError, Chapter, DeepLinkHandler, DeepLinkResult, FilterValue, Home, HomeLayout, Listing,
 \tListingProvider, Manga, MangaPageResult, Page, Result, Source,
@@ -808,9 +1017,9 @@ impl DeepLinkHandler for {{SOURCE_NAME}} {
 }
 
 register_source!({{SOURCE_NAME}}, ListingProvider, Home, DeepLinkHandler);
-'''
+"""
 
-TEMPLATE_LIB = '''#![no_std]
+TEMPLATE_LIB = """#![no_std]
 use aidoku::{
 \tAidokuError, Chapter, DeepLinkHandler, DeepLinkResult, FilterValue, Home, HomeLayout, Listing,
 \tListingProvider, Manga, MangaPageResult, Page, Result, Source,
@@ -926,7 +1135,7 @@ impl<T: Impl> DeepLinkHandler for {{TEMPLATE_NAME}}<T> {
 \t\tself.inner.handle_deep_link(&self.params, url)
 \t}
 }
-'''
+"""
 
 
 class TemplateSurface(NamedTuple):
@@ -950,7 +1159,12 @@ class TemplateRef(NamedTuple):
 
 
 def png_chunk(tag: bytes, data: bytes) -> bytes:
-    return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data))
+    return (
+        struct.pack(">I", len(data))
+        + tag
+        + data
+        + struct.pack(">I", zlib.crc32(tag + data))
+    )
 
 
 def write_placeholder_icon(path: Path, seed: str) -> None:
@@ -983,7 +1197,10 @@ def package_name_for(name: str) -> str:
     accent stripped down to `dankefurslesen`. Match that instead.
     """
     ascii_name = (
-        unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode("ascii").lower()
+        unicodedata.normalize("NFKD", name)
+        .encode("ascii", "ignore")
+        .decode("ascii")
+        .lower()
     )
     cleaned = "".join(c for c in ascii_name if c.isalnum() or c == "_").strip("_")
     return "test_source" if cleaned == "test" else cleaned
@@ -996,7 +1213,9 @@ def type_name_for(name: str) -> str:
     `Madara`. Only the first letter is touched: `MangaThemesia` and `MMRCMS`
     have to survive intact.
     """
-    ascii_name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode("ascii")
+    ascii_name = (
+        unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode("ascii")
+    )
     words = re.split(r"[^0-9A-Za-z]+", ascii_name)
     return "".join(word[:1].upper() + word[1:] for word in words)
 
@@ -1085,7 +1304,9 @@ def inspect_template(path: Path) -> TemplateSurface:
         for name in re.findall(r"^\tfn (\w+)", trait_body, re.MULTILINE)
         if name not in ("new", "params")
     )
-    return TemplateSurface(type_name, fields, params_has_default, registers, overridable)
+    return TemplateSurface(
+        type_name, fields, params_has_default, registers, overridable
+    )
 
 
 def render_source_template_lib(source_type: str, template: TemplateRef) -> str:
@@ -1223,7 +1444,8 @@ def write_source(
         SOURCE_MANIFEST.format(package=package, extra_deps=extra_deps), encoding="utf-8"
     )
     (directory / "res" / "source.json").write_text(
-        json.dumps(source_json, indent="\t", ensure_ascii=False) + "\n", encoding="utf-8"
+        json.dumps(source_json, indent="\t", ensure_ascii=False) + "\n",
+        encoding="utf-8",
     )
     write_placeholder_icon(directory / "res" / "icon.png", source_json["info"]["id"])
 
@@ -1272,9 +1494,11 @@ def cmd_init(args: argparse.Namespace) -> None:
     if directory.parent != ROOT / "sources":
         # the workspace members globs are `sources/*` and `templates/*`; a crate
         # anywhere else can't inherit `version`/`edition` and won't even parse
-        die("{} is not directly under sources/, so it can't be a workspace member".format(
-            rel(directory)
-        ))
+        die(
+            "{} is not directly under sources/, so it can't be a workspace member".format(
+                rel(directory)
+            )
+        )
     if directory.exists():
         die("{} already exists".format(rel(directory)))
     clash = next((m for m in existing if m.name == package), None)
@@ -1297,6 +1521,7 @@ def cmd_init(args: argparse.Namespace) -> None:
             "url": url,
             "contentRating": CONTENT_RATINGS[rating],
             "languages": languages,
+            "minAppVersion": workspace_min_app_version(),
         }
     }
     try:
@@ -1336,7 +1561,11 @@ def init_template(
 
     directory = ROOT / "templates" / base
     reused = next(
-        (m for m in existing if m.kind == "template" and (m.path == directory or m.name == base)),
+        (
+            m
+            for m in existing
+            if m.kind == "template" and (m.path == directory or m.name == base)
+        ),
         None,
     )
     if reused:
@@ -1363,7 +1592,11 @@ def init_template(
     taken = {m.name for m in existing} | {source_package}
     package = base if base not in taken else "{}_template".format(base)
     if package in taken:
-        die("the crate name '{}' is already taken; pass a different --template-name".format(package))
+        die(
+            "the crate name '{}' is already taken; pass a different --template-name".format(
+                package
+            )
+        )
 
     write_template(directory, package, type_name)
     add_workspace_dependency(package, "templates/{}".format(base))
@@ -1382,6 +1615,7 @@ def init_template(
 
 
 # ------------------------------------------------------------------ argparser
+
 
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(
@@ -1415,15 +1649,23 @@ def parser() -> argparse.ArgumentParser:
     )
     manifest.add_argument("paths", nargs="*", metavar="SOURCE")
     manifest.add_argument(
-        "-o", "--output", default=str(ROOT / "public" / "sources" / MANIFEST_NAME),
+        "-o",
+        "--output",
+        default=str(ROOT / "public" / "sources" / MANIFEST_NAME),
         help="where to write the manifest",
     )
     manifest.set_defaults(func=cmd_manifest)
 
-    build = commands.add_parser("build", help="build a source list from packaged sources")
+    build = commands.add_parser(
+        "build", help="build a source list from packaged sources"
+    )
     build.add_argument("files", nargs="*", metavar="FILE")
-    build.add_argument("-o", "--output", default=str(ROOT / "public"), help="output folder path")
-    build.add_argument("-n", "--name", default=SOURCE_LIST_NAME, help="source list name")
+    build.add_argument(
+        "-o", "--output", default=str(ROOT / "public"), help="output folder path"
+    )
+    build.add_argument(
+        "-n", "--name", default=SOURCE_LIST_NAME, help="source list name"
+    )
     build.set_defaults(func=cmd_build)
 
     verify = commands.add_parser("verify", help="verify packaged sources")
@@ -1432,12 +1674,16 @@ def parser() -> argparse.ArgumentParser:
 
     serve = commands.add_parser("serve", help="build a source list and serve it")
     serve.add_argument("files", nargs="*", metavar="FILE")
-    serve.add_argument("-o", "--output", default=str(ROOT / "public"), help="output folder path")
+    serve.add_argument(
+        "-o", "--output", default=str(ROOT / "public"), help="output folder path"
+    )
     serve.add_argument("-p", "--port", type=int, default=8080, help="port to serve on")
     serve.set_defaults(func=cmd_serve)
 
     logcat = commands.add_parser("logcat", help="open a server for log streaming")
-    logcat.add_argument("-p", "--port", type=int, default=9000, help="port to listen on")
+    logcat.add_argument(
+        "-p", "--port", type=int, default=9000, help="port to listen on"
+    )
     logcat.set_defaults(func=cmd_logcat)
 
     init = commands.add_parser("init", help="scaffold a new source or template")
@@ -1445,17 +1691,45 @@ def parser() -> argparse.ArgumentParser:
     init.add_argument("-n", "--name", help="source name")
     init.add_argument("-u", "--url", help="source homepage url")
     init.add_argument(
-        "-l", "--languages", action="append", default=[], metavar="LANG", help="source languages"
+        "-l",
+        "--languages",
+        action="append",
+        default=[],
+        metavar="LANG",
+        help="source languages",
     )
     init.add_argument("-c", "--content-rating", choices=sorted(CONTENT_RATINGS))
-    init.add_argument("--template", action="store_true", help="also scaffold a source template")
-    init.add_argument("-t", "--template-name", help="template to create, or an existing one to use")
+    init.add_argument(
+        "--template", action="store_true", help="also scaffold a source template"
+    )
+    init.add_argument(
+        "-t", "--template-name", help="template to create, or an existing one to use"
+    )
     init.set_defaults(func=cmd_init)
 
-    listing = commands.add_parser("list", help="list workspace members and their crate names")
+    min_app = commands.add_parser(
+        "min-app-version", help="check or set the minAppVersion every source declares"
+    )
+    min_app.add_argument("paths", nargs="*", metavar="SOURCE")
+    min_app.add_argument(
+        "--sync",
+        action="store_true",
+        help="write the workspace value into every source",
+    )
+    min_app.add_argument(
+        "--set", metavar="VERSION", help="change the workspace value, then sync it out"
+    )
+    min_app.set_defaults(func=cmd_min_app_version)
+
+    listing = commands.add_parser(
+        "list", help="list workspace members and their crate names"
+    )
     listing.add_argument("paths", nargs="*", metavar="MEMBER")
     listing.add_argument(
-        "-k", "--kind", choices=("source", "template"), help="limit to one kind of member"
+        "-k",
+        "--kind",
+        choices=("source", "template"),
+        help="limit to one kind of member",
     )
     listing.set_defaults(func=cmd_list)
 
