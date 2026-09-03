@@ -1,9 +1,11 @@
 import json
+from pathlib import Path
 from typing import Dict
 
 import requests
 
 BASE_URL = 'https://mangadot.net'
+FILTERS = Path(__file__).resolve().parent.parent / 'res' / 'filters.json'
 
 
 def resolve_ptr_table_json(table: list, index: int):
@@ -50,7 +52,7 @@ with requests.Session() as mangadot_session:
 
     genres = search_json['pages/SearchPage']['data']['allGenres']
 
-    with open('../res/filters.json', 'rt') as f:
+    with open(FILTERS, 'rt') as f:
         filters_json = json.load(f)
 
         for obj in filters_json:
@@ -58,7 +60,7 @@ with requests.Session() as mangadot_session:
                 obj['options'] = genres
                 break
 
-    with open('../res/filters.json', 'wt') as f:
+    with open(FILTERS, 'wt') as f:
         json.dump(filters_json, f, ensure_ascii=False, indent='\t')
         f.write('\n')
         f.flush()
