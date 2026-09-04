@@ -2198,6 +2198,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "xcomic"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "zaimanhua"
 version = "0.1.0"
 dependencies = [

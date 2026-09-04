@@ -1,0 +1,16 @@
+[package]
+name = "xcomic"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+aidoku = { workspace = true, features = ["json"] }
+serde = { workspace = true, features = ["derive", "alloc"] }
+serde_json = { workspace = true, features = ["alloc"] }
+
+[dev-dependencies]
+aidoku = { workspace = true, features = ["test"] }
+aidoku-test.workspace = true
