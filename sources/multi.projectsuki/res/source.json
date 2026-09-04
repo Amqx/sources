@@ -1,0 +1,15 @@
+{
+	"info": {
+		"id": "multi.projectsuki",
+		"name": "Project Suki",
+		"version": 1,
+		"url": "https://projectsuki.com",
+		"contentRating": 0,
+		"languages": ["multi"],
+		"minAppVersion": "0.8.4"
+	},
+	"listings": [
+		{ "id": "browse", "name": "Browse" },
+		{ "id": "latest", "name": "Latest" }
+	]
+}

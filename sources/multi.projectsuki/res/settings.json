@@ -1,0 +1,27 @@
+[
+	{
+		"type": "group",
+		"title": "Chapter Languages",
+		"footer": "Language names are matched case-insensitively against the website. If both lists contain a language, the blocklist wins.",
+		"items": [
+			{
+				"type": "text",
+				"key": "languagesWhitelist",
+				"title": "Allowed languages",
+				"placeholder": "English, Spanish",
+				"autocapitalizationType": 0,
+				"autocorrectionDisabled": true,
+				"refreshes": ["content", "listings"]
+			},
+			{
+				"type": "text",
+				"key": "languagesBlacklist",
+				"title": "Blocked languages",
+				"placeholder": "Unknown, Russian",
+				"autocapitalizationType": 0,
+				"autocorrectionDisabled": true,
+				"refreshes": ["content", "listings"]
+			}
+		]
+	}
+]

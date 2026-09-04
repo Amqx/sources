@@ -1,0 +1,28 @@
+[
+	{
+		"type": "select",
+		"id": "origin",
+		"title": "Origin",
+		"options": ["Any", "Korea", "China", "Japan"],
+		"ids": ["", "kr", "cn", "jp"]
+	},
+	{
+		"type": "select",
+		"id": "status",
+		"title": "Status",
+		"options": ["Any", "Ongoing", "Completed", "Hiatus", "Cancelled"],
+		"ids": ["", "ongoing", "completed", "hiatus", "cancelled"]
+	},
+	{
+		"type": "text",
+		"id": "author",
+		"title": "Author",
+		"placeholder": "Search by one author"
+	},
+	{
+		"type": "text",
+		"id": "artist",
+		"title": "Artist",
+		"placeholder": "Search by one artist"
+	}
+]

@@ -1,0 +1,15 @@
+[package]
+name = "projectsuki"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+aidoku = { workspace = true, features = ["json"] }
+serde = { workspace = true, features = ["derive", "alloc"] }
+
+[dev-dependencies]
+aidoku = { workspace = true, features = ["test"] }
+aidoku-test.workspace = true
