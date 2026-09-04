@@ -1,0 +1,29 @@
+{
+	"info": {
+		"id": "multi.onisaga",
+		"name": "OniSaga",
+		"version": 1,
+		"url": "https://onisaga.com",
+		"contentRating": 1,
+		"languages": [
+			"en",
+			"fr",
+			"ja",
+			"pt-BR",
+			"pt",
+			"es-419",
+			"es"
+		],
+		"minAppVersion": "0.8.4"
+	},
+	"listings": [
+		{
+			"id": "popular",
+			"name": "Popular"
+		},
+		{
+			"id": "latest",
+			"name": "Latest"
+		}
+	]
+}
