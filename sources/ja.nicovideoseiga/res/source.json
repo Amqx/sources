@@ -7,6 +7,6 @@
 		"urls": ["https://manga.nicovideo.jp", "https://sp.manga.nicovideo.jp"],
 		"contentRating": 1,
 		"languages": ["ja"],
-		"minAppVersion": "0.8.4"
+		"minAppVersion": "0.9"
 	}
 }

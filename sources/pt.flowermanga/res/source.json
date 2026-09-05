@@ -6,7 +6,7 @@
 		"url": "https://flowermanga.net",
 		"contentRating": 1,
 		"languages": ["pt-BR"],
-		"minAppVersion": "0.8.4"
+		"minAppVersion": "0.9"
 	},
 	"config": {
 		"breakingChangeVersion": 3

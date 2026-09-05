@@ -6,7 +6,7 @@
 		"url": "https://myreadingmanga.info",
 		"contentRating": 2,
 		"languages": ["en", "ja", "zh", "ko", "es", "fr", "de", "it", "pt"],
-		"minAppVersion": "0.8.4"
+		"minAppVersion": "0.9"
 	},
 	"listings": [
 		{ "id": "latest", "name": "Latest" },

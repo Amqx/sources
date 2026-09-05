@@ -23,7 +23,7 @@
 			"th",
 			"vi"
 		],
-		"minAppVersion": "0.8.4"
+		"minAppVersion": "0.9"
 	},
 	"config": {
 		"languageSelectType": "single",

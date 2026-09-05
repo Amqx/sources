@@ -6,7 +6,7 @@
 		"url": "https://mangaplus.shueisha.co.jp",
 		"contentRating": 0,
 		"languages": ["en", "es", "fr", "id", "pt-BR", "ru", "th", "vi", "de"],
-		"minAppVersion": "0.8.4"
+		"minAppVersion": "0.9"
 	},
 	"listings": [
 		{

@@ -5,7 +5,7 @@
 		"version": 3,
 		"url": "https://ranobelib.me",
 		"contentRating": 1,
-		"minAppVersion": "0.8.4",
+		"minAppVersion": "0.9",
 		"languages": ["ru"]
 	},
 	"listings": [

@@ -4,7 +4,7 @@
 		"name": "Danke fürs Lesen",
 		"version": 3,
 		"url": "https://danke.moe",
-		"minAppVersion": "0.8.4",
+		"minAppVersion": "0.9",
 		"contentRating": 2,
 		"languages": ["en"]
 	},

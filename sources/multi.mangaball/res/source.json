@@ -11,6 +11,6 @@
 			"ml", "ms", "ne", "nl", "no", "pl", "pt-BR", "ro", "ru", "sk",
 			"sl", "sq", "sr", "sv", "ta", "th", "tr", "uk", "vi", "zh"
 		],
-		"minAppVersion": "0.8.4"
+		"minAppVersion": "0.9"
 	}
 }

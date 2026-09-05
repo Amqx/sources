@@ -19,7 +19,7 @@
 		],
 		"contentRating": 1,
 		"languages": ["zh"],
-		"minAppVersion": "0.8.4"
+		"minAppVersion": "0.9"
 	},
 	"config": {
 		"hidesFiltersWhileSearching": true,

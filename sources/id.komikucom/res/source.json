@@ -6,7 +6,7 @@
 		"url": "https://01.komiku.asia",
 		"contentRating": 1,
 		"languages": ["id"],
-		"minAppVersion": "0.8.4"
+		"minAppVersion": "0.9"
 	},
 	"config": {
 		"breakingChangeVersion": 5

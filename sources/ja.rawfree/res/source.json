@@ -6,7 +6,7 @@
 		"url": "https://rawfree.sale",
 		"contentRating": 1,
 		"languages": ["ja"],
-		"minAppVersion": "0.8.4"
+		"minAppVersion": "0.9"
 	},
 	"config": {
 		"supportsTagSearch": true

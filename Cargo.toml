@@ -8,7 +8,7 @@ edition = "2024"
 
 [workspace.metadata.aidoku]
 # Synced across all extensions
-min-app-version = "0.8.4"
+min-app-version = "0.9"
 
 [workspace.dependencies]
 # Pinned so every source compiles against the same aidoku-rs.

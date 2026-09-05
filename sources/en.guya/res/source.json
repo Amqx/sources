@@ -4,7 +4,7 @@
 		"name": "Guya",
 		"version": 2,
 		"url": "https://guya.cubari.moe",
-		"minAppVersion": "0.8.4",
+		"minAppVersion": "0.9",
 		"contentRating": 0,
 		"languages": ["en"]
 	}

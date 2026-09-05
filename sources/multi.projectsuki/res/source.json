@@ -6,7 +6,7 @@
 		"url": "https://projectsuki.com",
 		"contentRating": 0,
 		"languages": ["multi"],
-		"minAppVersion": "0.8.4"
+		"minAppVersion": "0.9"
 	},
 	"listings": [
 		{ "id": "browse", "name": "Browse" },
