@@ -40,10 +40,12 @@ pub fn parse_manga_details(manga: &mut Manga, html: &Document) -> Result<()> {
 		.select_first("#ani_detail")
 		.ok_or(AidokuError::message("Unable to find manga details"))?;
 
-	manga.title = element
-		.select_first(".manga_name")
+	if let Some(title) = element
+		.select_first(".manga_name, .manga-name")
 		.and_then(|e| e.own_text())
-		.unwrap_or(manga.title.clone());
+	{
+		manga.title = title;
+	}
 	manga.cover = element.select_first("img").and_then(|img| img.img_attr());
 
 	let (authors, artists) = element
@@ -142,6 +144,9 @@ pub fn parse_manga_chapters(html: &Document, params: &Params) -> Option<Vec<Chap
 								.parse::<f32>()
 								.ok()
 						});
+				if !params.has_chapter_titles {
+					title = None;
+				}
 				if title.as_ref().is_some_and(|t| {
 					*t == format!("Chapter {}", chapter_number.unwrap_or_default())
 						|| *t == format!("第{}話", chapter_number.unwrap_or_default())

@@ -2,7 +2,7 @@
 	"info": {
 		"id": "ja.rawotaku",
 		"name": "Raw Otaku",
-		"version": 1,
+		"version": 2,
 		"url": "https://rawotaku.com",
 		"contentRating": 1,
 		"languages": ["ja"],
