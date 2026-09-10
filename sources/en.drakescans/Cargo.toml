@@ -8,7 +8,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 aidoku.workspace = true
-mangathemesia.workspace = true
+vinetheme.workspace = true
 
 [dev-dependencies]
 aidoku = { workspace = true, features = ["test"] }

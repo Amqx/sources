@@ -57,6 +57,7 @@ mmrcms = { path = "templates/mmrcms" }
 mytheme = { path = "templates/mytheme" }
 pizzareader = { path = "templates/pizzareader" }
 tukutema = { path = "templates/tukutema" }
+vinetheme = { path = "templates/vinetheme" }
 wpcomics = { path = "templates/wpcomics" }
 
 [profile.dev]
