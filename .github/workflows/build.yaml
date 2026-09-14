@@ -73,9 +73,18 @@ jobs:
 
       - name: Install Aidoku CLI
         run: |
-          if ! command -v aidoku >/dev/null 2>&1; then
-            cargo install --git https://github.com/amqx/aidoku-rs aidoku-cli
-          fi
+          uv run --frozen python - <<'PY'
+          import subprocess
+          import tomllib
+
+          with open("Cargo.toml", "rb") as manifest:
+              aidoku = tomllib.load(manifest)["workspace"]["dependencies"]["aidoku"]
+          subprocess.run(
+              ["cargo", "install", "--git", aidoku["git"], "--rev", aidoku["rev"],
+               "--force", "aidoku-cli"],
+              check=True,
+          )
+          PY
 
       - name: Build sources
         run: |
