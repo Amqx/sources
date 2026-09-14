@@ -1,7 +1,7 @@
 # Amqx's Aidoku Sources
 
 >[!IMPORTANT]
->This repo requires Aidoku version >= 0.8.4.
+>This repo requires Aidoku version >= 0.9.0 revision 2.
 
 This repository hosts sources from upstream as well as a few of my own. See upstream's [README](https://github.com/Aidoku-Community/sources/blob/main/README.md) for more info.
 
