@@ -9,6 +9,7 @@ crate-type = ["cdylib"]
 [dependencies]
 aes.workspace = true
 aidoku = { workspace = true, features = ["json"] }
+base64 = { workspace = true, features = ["alloc"] }
 cbc.workspace = true
 chinese-number.workspace = true
 hex.workspace = true
@@ -18,3 +19,7 @@ serde_json.workspace = true
 spin.workspace = true
 strum.workspace = true
 uuid = { workspace = true, features = ["serde"] }
+
+[dev-dependencies]
+aidoku = { workspace = true, features = ["test"] }
+aidoku-test.workspace = true

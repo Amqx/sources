@@ -355,6 +355,8 @@ version = "0.1.0"
 dependencies = [
  "aes",
  "aidoku",
+ "aidoku-test",
+ "base64",
  "cbc",
  "chinese-number",
  "hex",
