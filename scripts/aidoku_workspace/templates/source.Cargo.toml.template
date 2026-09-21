@@ -1,0 +1,14 @@
+[package]
+name = "{package}"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+aidoku.workspace = true
+{extra_deps}
+[dev-dependencies]
+aidoku = {{ workspace = true, features = ["test"] }}
+aidoku-test.workspace = true

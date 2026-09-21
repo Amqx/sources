@@ -1,0 +1,17 @@
+#![no_std]
+use aidoku::{{Source, prelude::*}};
+use {lib}::{{{template_imports}}};
+
+struct {source};
+
+impl Impl for {source} {{
+	fn new() -> Self {{
+		Self
+	}}
+
+	fn params(&self) -> Params {{
+		{params}
+	}}
+}}
+
+register_source!({type_name}<{source}>{registers});
