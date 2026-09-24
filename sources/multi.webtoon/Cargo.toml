@@ -1,0 +1,16 @@
+[package]
+name = "webtoon"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+aidoku = { workspace = true, features = ["json"] }
+hashbrown.workspace = true
+serde = { workspace = true, features = ["derive", "alloc"] }
+
+[dev-dependencies]
+aidoku = { workspace = true, features = ["test"] }
+aidoku-test.workspace = true
