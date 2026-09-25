@@ -1436,6 +1436,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "naverwebtoon"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "serde",
+]
+
+[[package]]
 name = "nettruyen"
 version = "0.1.0"
 dependencies = [
