@@ -2,18 +2,18 @@ use super::*;
 use aidoku_test::aidoku_test;
 
 macro_rules! manga_page_result {
-	($name:ident, $json:literal, $has_next_page:literal, $entries_len:literal, $last_manga:expr) => {
-		#[aidoku_test]
-		fn $name() {
-			let manga_page_result: MangaPageResult =
-				serde_json::from_str::<Root>($json).unwrap().into();
-			assert_eq!(manga_page_result.has_next_page, $has_next_page);
+    ($name:ident, $json:literal, $has_next_page:literal, $entries_len:literal, $last_manga:expr) => {
+        #[aidoku_test]
+        fn $name() {
+            let manga_page_result: MangaPageResult =
+                serde_json::from_str::<Root>($json).unwrap().into();
+            assert_eq!(manga_page_result.has_next_page, $has_next_page);
 
-			let entries = manga_page_result.entries;
-			assert_eq!(entries.len(), $entries_len);
-			assert_eq!(entries.into_iter().last().unwrap(), $last_manga);
-		}
-	};
+            let entries = manga_page_result.entries;
+            assert_eq!(entries.len(), $entries_len);
+            assert_eq!(entries.into_iter().last().unwrap(), $last_manga);
+        }
+    };
 }
 manga_page_result!(
 	last_updated_1,

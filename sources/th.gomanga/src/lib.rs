@@ -7,21 +7,21 @@ const BASE_URL: &str = "https://www.go-manga.com";
 struct GoManga;
 
 impl Impl for GoManga {
-	fn new() -> Self {
-		Self
-	}
+    fn new() -> Self {
+        Self
+    }
 
-	fn params(&self) -> Params {
-		Params {
-			base_url: BASE_URL.into(),
-			..Default::default()
-		}
-	}
+    fn params(&self) -> Params {
+        Params {
+            base_url: BASE_URL.into(),
+            ..Default::default()
+        }
+    }
 }
 
 register_source!(
-	MangaThemesia<GoManga>,
-	Home,
-	ImageRequestProvider,
-	DeepLinkHandler
+    MangaThemesia<GoManga>,
+    Home,
+    ImageRequestProvider,
+    DeepLinkHandler
 );

@@ -1,10 +1,10 @@
 use crate::Params;
 use aidoku::{
-	Chapter, Manga, MangaStatus, Viewer,
-	alloc::{String, Vec, string::ToString, vec},
-	helpers::element::ElementHelpers,
-	imports::html::Html,
-	prelude::*,
+    Chapter, Manga, MangaStatus, Viewer,
+    alloc::{String, Vec, string::ToString, vec},
+    helpers::element::ElementHelpers,
+    imports::html::Html,
+    prelude::*,
 };
 use serde::Deserialize;
 
@@ -12,195 +12,195 @@ use serde::Deserialize;
 #[serde(rename_all = "camelCase")]
 #[serde(bound(deserialize = "'de: 'a"))]
 pub struct SearchResponse<'a> {
-	pub posts: Vec<Post<'a>>,
-	pub total_count: i32,
+    pub posts: Vec<Post<'a>>,
+    pub total_count: i32,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(bound(deserialize = "'de: 'a"))]
 pub struct PostResponse<'a> {
-	pub post: Post<'a>,
+    pub post: Post<'a>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(bound(deserialize = "'de: 'a"))]
 pub struct ChaptersResponse<'a> {
-	pub post: PostWithOnlyChapters<'a>,
+    pub post: PostWithOnlyChapters<'a>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(bound(deserialize = "'de: 'a"))]
 pub struct ChapterResponse<'a> {
-	pub chapter: IkenChapter<'a>,
+    pub chapter: IkenChapter<'a>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Post<'a> {
-	pub id: i32,
-	pub slug: &'a str,
-	post_title: String,
-	post_content: Option<String>,
-	featured_image: Option<&'a str>,
-	author: Option<String>,
-	artist: Option<String>,
-	series_type: Option<&'a str>,
-	series_status: Option<&'a str>,
-	genres: Option<Vec<Genre<'a>>>,
-	chapters: Option<Vec<IkenChapter<'a>>>,
+    pub id: i32,
+    pub slug: &'a str,
+    post_title: String,
+    post_content: Option<String>,
+    featured_image: Option<&'a str>,
+    author: Option<String>,
+    artist: Option<String>,
+    series_type: Option<&'a str>,
+    series_status: Option<&'a str>,
+    genres: Option<Vec<Genre<'a>>>,
+    chapters: Option<Vec<IkenChapter<'a>>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IkenChapter<'a> {
-	id: i32,
-	slug: &'a str,
-	number: f32,
-	title: Option<String>,
-	created_by: Option<Author<'a>>,
-	created_at: &'a str,
-	// chapter_status: &'a str,
-	is_locked: Option<bool>,
-	is_time_locked: Option<bool>,
-	pub content: Option<String>,
-	pub images: Option<Vec<Image<'a>>>,
+    id: i32,
+    slug: &'a str,
+    number: f32,
+    title: Option<String>,
+    created_by: Option<Author<'a>>,
+    created_at: &'a str,
+    // chapter_status: &'a str,
+    is_locked: Option<bool>,
+    is_time_locked: Option<bool>,
+    pub content: Option<String>,
+    pub images: Option<Vec<Image<'a>>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Genre<'a> {
-	// id: i32,
-	name: &'a str,
+    // id: i32,
+    name: &'a str,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Author<'a> {
-	name: &'a str,
+    name: &'a str,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Image<'a> {
-	pub url: &'a str,
+    pub url: &'a str,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(bound(deserialize = "'de: 'a"))]
 pub struct PostWithOnlyChapters<'a> {
-	chapters: Option<Vec<IkenChapter<'a>>>,
+    chapters: Option<Vec<IkenChapter<'a>>>,
 }
 
 impl Post<'_> {
-	pub fn parse_basic_manga(&self, params: &Params) -> Manga {
-		Manga {
-			key: if params.use_slug_series_keys {
-				self.slug.into()
-			} else {
-				self.id.to_string()
-			},
-			title: self.post_title.clone(),
-			cover: self.featured_image.map(|s| s.into()),
-			..Default::default()
-		}
-	}
+    pub fn parse_basic_manga(&self, params: &Params) -> Manga {
+        Manga {
+            key: if params.use_slug_series_keys {
+                self.slug.into()
+            } else {
+                self.id.to_string()
+            },
+            title: self.post_title.clone(),
+            cover: self.featured_image.map(|s| s.into()),
+            ..Default::default()
+        }
+    }
 
-	pub fn parse_manga(&self, params: &Params) -> Manga {
-		Manga {
-			artists: self.artist.as_ref().and_then(|s| {
-				if !s.is_empty() {
-					Some(vec![s.into()])
-				} else {
-					None
-				}
-			}),
-			authors: self.author.as_ref().and_then(|s| {
-				if !s.is_empty() {
-					Some(vec![s.into()])
-				} else {
-					None
-				}
-			}),
-			description: self
-				.post_content
-				.as_ref()
-				.and_then(|s| Html::parse_fragment(s).ok())
-				.and_then(|html| {
-					html.select_first("body")
-						.expect("parsed fragment must have body")
-						.text_with_newlines()
-				})
-				.map(|s| s.trim().into()),
-			url: Some(format!("{}/series/{}", params.base_url, self.slug)),
-			tags: self
-				.genres
-				.as_ref()
-				.map(|genres| genres.iter().map(|genre| genre.name.into()).collect()),
-			status: self
-				.series_status
-				.map(|s| match s {
-					"ONGOING" | "COMING_SOON" => MangaStatus::Ongoing,
-					"COMPLETED" | "ONE_SHOT" => MangaStatus::Completed,
-					"CANCELLED" | "DROPPED" => MangaStatus::Cancelled,
-					"HIATUS" => MangaStatus::Hiatus,
-					_ => MangaStatus::Unknown,
-				})
-				.unwrap_or(MangaStatus::Unknown),
-			viewer: self
-				.series_type
-				.map(|s| match s {
-					"MANGA" => Viewer::RightToLeft,
-					"MANHUA" => Viewer::Webtoon,
-					"MANHWA" => Viewer::Webtoon,
-					_ => Viewer::Unknown,
-				})
-				.unwrap_or(Viewer::Unknown),
-			..self.parse_basic_manga(params)
-		}
-	}
+    pub fn parse_manga(&self, params: &Params) -> Manga {
+        Manga {
+            artists: self.artist.as_ref().and_then(|s| {
+                if !s.is_empty() {
+                    Some(vec![s.into()])
+                } else {
+                    None
+                }
+            }),
+            authors: self.author.as_ref().and_then(|s| {
+                if !s.is_empty() {
+                    Some(vec![s.into()])
+                } else {
+                    None
+                }
+            }),
+            description: self
+                .post_content
+                .as_ref()
+                .and_then(|s| Html::parse_fragment(s).ok())
+                .and_then(|html| {
+                    html.select_first("body")
+                        .expect("parsed fragment must have body")
+                        .text_with_newlines()
+                })
+                .map(|s| s.trim().into()),
+            url: Some(format!("{}/series/{}", params.base_url, self.slug)),
+            tags: self
+                .genres
+                .as_ref()
+                .map(|genres| genres.iter().map(|genre| genre.name.into()).collect()),
+            status: self
+                .series_status
+                .map(|s| match s {
+                    "ONGOING" | "COMING_SOON" => MangaStatus::Ongoing,
+                    "COMPLETED" | "ONE_SHOT" => MangaStatus::Completed,
+                    "CANCELLED" | "DROPPED" => MangaStatus::Cancelled,
+                    "HIATUS" => MangaStatus::Hiatus,
+                    _ => MangaStatus::Unknown,
+                })
+                .unwrap_or(MangaStatus::Unknown),
+            viewer: self
+                .series_type
+                .map(|s| match s {
+                    "MANGA" => Viewer::RightToLeft,
+                    "MANHUA" => Viewer::Webtoon,
+                    "MANHWA" => Viewer::Webtoon,
+                    _ => Viewer::Unknown,
+                })
+                .unwrap_or(Viewer::Unknown),
+            ..self.parse_basic_manga(params)
+        }
+    }
 
-	pub fn chapters(self, base_url: &str) -> Vec<Chapter> {
-		self.chapters
-			.map(|chapters| {
-				chapters
-					.into_iter()
-					.map(|c| c.parse_chapter(base_url, self.slug))
-					.collect()
-			})
-			.unwrap_or_default()
-	}
+    pub fn chapters(self, base_url: &str) -> Vec<Chapter> {
+        self.chapters
+            .map(|chapters| {
+                chapters
+                    .into_iter()
+                    .map(|c| c.parse_chapter(base_url, self.slug))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
 }
 
 impl PostWithOnlyChapters<'_> {
-	pub fn chapters(self, base_url: &str, slug: &str) -> Vec<Chapter> {
-		self.chapters
-			.map(|chapters| {
-				chapters
-					.into_iter()
-					.map(|c| c.parse_chapter(base_url, slug))
-					.collect()
-			})
-			.unwrap_or_default()
-	}
+    pub fn chapters(self, base_url: &str, slug: &str) -> Vec<Chapter> {
+        self.chapters
+            .map(|chapters| {
+                chapters
+                    .into_iter()
+                    .map(|c| c.parse_chapter(base_url, slug))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
 }
 
 impl IkenChapter<'_> {
-	fn parse_chapter(self, base_url: &str, manga_slug: &str) -> Chapter {
-		Chapter {
-			key: self.id.to_string(),
-			title: self.title.filter(|title| !title.is_empty()),
-			chapter_number: Some(self.number),
-			volume_number: None,
-			date_uploaded: chrono::DateTime::parse_from_rfc3339(self.created_at)
-				.ok()
-				.map(|d| d.timestamp()),
-			scanlators: self
-				.created_by
-				.as_ref()
-				.map(|author| vec![author.name.into()]),
-			url: Some(format!("{base_url}/series/{manga_slug}/{}", self.slug)),
-			locked: self.is_locked.or(self.is_time_locked).unwrap_or(false),
-			..Default::default()
-		}
-	}
+    fn parse_chapter(self, base_url: &str, manga_slug: &str) -> Chapter {
+        Chapter {
+            key: self.id.to_string(),
+            title: self.title.filter(|title| !title.is_empty()),
+            chapter_number: Some(self.number),
+            volume_number: None,
+            date_uploaded: chrono::DateTime::parse_from_rfc3339(self.created_at)
+                .ok()
+                .map(|d| d.timestamp()),
+            scanlators: self
+                .created_by
+                .as_ref()
+                .map(|author| vec![author.name.into()]),
+            url: Some(format!("{base_url}/series/{manga_slug}/{}", self.slug)),
+            locked: self.is_locked.or(self.is_time_locked).unwrap_or(false),
+            ..Default::default()
+        }
+    }
 }
 
 // impl From<Post<'_>> for Manga {

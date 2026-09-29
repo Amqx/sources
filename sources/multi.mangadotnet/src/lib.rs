@@ -1,13 +1,13 @@
 #![no_std]
 use aidoku::{
-	Chapter, DeepLinkHandler, DeepLinkResult, DynamicListings, FilterValue, HashMap, Home,
-	HomeComponent, HomeComponentValue, HomeLayout, HomePartialResult, Listing, ListingProvider,
-	Manga, MangaPageResult, NotificationHandler, Page, PageContent, Result, Source,
-	WebLoginHandler,
-	alloc::{String, Vec, string::ToString, vec},
-	helpers::uri::QueryParameters,
-	imports::std::send_partial_result,
-	prelude::*,
+    Chapter, DeepLinkHandler, DeepLinkResult, DynamicListings, FilterValue, HashMap, Home,
+    HomeComponent, HomeComponentValue, HomeLayout, HomePartialResult, Listing, ListingProvider,
+    Manga, MangaPageResult, NotificationHandler, Page, PageContent, Result, Source,
+    WebLoginHandler,
+    alloc::{String, Vec, string::ToString, vec},
+    helpers::uri::QueryParameters,
+    imports::std::send_partial_result,
+    prelude::*,
 };
 use core::{cell::RefCell, cmp::*, ops::Deref};
 
@@ -22,267 +22,267 @@ use settings::*;
 const BASE_URL: &str = "https://mangadot.net";
 
 struct Mangadotnet {
-	cursor: RefCell<Option<String>>,
+    cursor: RefCell<Option<String>>,
 }
 
 impl Source for Mangadotnet {
-	fn new() -> Self {
-		Self {
-			cursor: RefCell::new(None),
-		}
-	}
+    fn new() -> Self {
+        Self {
+            cursor: RefCell::new(None),
+        }
+    }
 
-	fn get_search_manga_list(
-		&self,
-		query: Option<String>,
-		page: i32,
-		filters: Vec<FilterValue>,
-	) -> Result<MangaPageResult> {
-		let mut query_parameters = QueryParameters::new();
+    fn get_search_manga_list(
+        &self,
+        query: Option<String>,
+        page: i32,
+        filters: Vec<FilterValue>,
+    ) -> Result<MangaPageResult> {
+        let mut query_parameters = QueryParameters::new();
 
-		if query.is_some() {
-			query_parameters.push("search", query.as_deref());
-		}
+        if query.is_some() {
+            query_parameters.push("search", query.as_deref());
+        }
 
-		for filter in filters {
-			match filter {
-				FilterValue::Text { id, value } => {
-					query_parameters.push(&id, Some(&value));
-				}
+        for filter in filters {
+            match filter {
+                FilterValue::Text { id, value } => {
+                    query_parameters.push(&id, Some(&value));
+                }
 
-				FilterValue::Sort {
-					index, ascending, ..
-				} => {
-					let value = match index {
-						0 => "relevance",
-						1 => "latest",
-						2 => "alphabetical",
-						3 => "chapters",
-						4 => "views",
-						5 => "tracked",
-						6 => "rating",
-						_ => bail!("Invalid sort index"),
-					};
-					let order = match ascending {
-						true => "asc",
-						false => "desc",
-					};
-					query_parameters.push("sortBy", Some(value));
-					query_parameters.push("sortOrder", Some(order));
-				}
+                FilterValue::Sort {
+                    index, ascending, ..
+                } => {
+                    let value = match index {
+                        0 => "relevance",
+                        1 => "latest",
+                        2 => "alphabetical",
+                        3 => "chapters",
+                        4 => "views",
+                        5 => "tracked",
+                        6 => "rating",
+                        _ => bail!("Invalid sort index"),
+                    };
+                    let order = match ascending {
+                        true => "asc",
+                        false => "desc",
+                    };
+                    query_parameters.push("sortBy", Some(value));
+                    query_parameters.push("sortOrder", Some(order));
+                }
 
-				FilterValue::Select { id, value } => {
-					query_parameters.push(&id, Some(&value));
-				}
+                FilterValue::Select { id, value } => {
+                    query_parameters.push(&id, Some(&value));
+                }
 
-				FilterValue::MultiSelect {
-					id,
-					included,
-					excluded,
-				} => {
-					if page == 1 && (id == "genre" || id == "origin") {
-						for include_id in included {
-							query_parameters.push(&id, Some(&include_id));
-						}
+                FilterValue::MultiSelect {
+                    id,
+                    included,
+                    excluded,
+                } => {
+                    if page == 1 && (id == "genre" || id == "origin") {
+                        for include_id in included {
+                            query_parameters.push(&id, Some(&include_id));
+                        }
 
-						for excluded_id in excluded {
-							let id = format!("-{excluded_id}");
-							query_parameters.push(&id, Some(&id));
-						}
-					} else {
-						let mut items = Vec::new();
+                        for excluded_id in excluded {
+                            let id = format!("-{excluded_id}");
+                            query_parameters.push(&id, Some(&id));
+                        }
+                    } else {
+                        let mut items = Vec::new();
 
-						for include_id in included {
-							items.push(include_id)
-						}
+                        for include_id in included {
+                            items.push(include_id)
+                        }
 
-						for excluded_id in excluded {
-							let id = format!("-{excluded_id}");
-							items.push(id)
-						}
+                        for excluded_id in excluded {
+                            let id = format!("-{excluded_id}");
+                            items.push(id)
+                        }
 
-						query_parameters.push(&id, Some(&items.join(",")));
-					}
-				}
+                        query_parameters.push(&id, Some(&items.join(",")));
+                    }
+                }
 
-				_ => bail!("Invalid filter"),
-			}
-		}
+                _ => bail!("Invalid filter"),
+            }
+        }
 
-		if page == 1 {
-			query_parameters.push("_routes", Some("pages/SearchPage"));
+        if page == 1 {
+            query_parameters.push("_routes", Some("pages/SearchPage"));
 
-			let search_response: SearchPage = get_page_container_json_data(&format!(
-				"{BASE_URL}/search.data?{query_parameters}"
-			))?;
+            let search_response: SearchPage = get_page_container_json_data(&format!(
+                "{BASE_URL}/search.data?{query_parameters}"
+            ))?;
 
-			if let Some(payload) = search_response.payload {
-				let mut has_next_page = false;
+            if let Some(payload) = search_response.payload {
+                let mut has_next_page = false;
 
-				if let Some(pagination) = payload.pagination {
-					has_next_page = pagination.current_page < pagination.total_pages;
-					*self.cursor.borrow_mut() = pagination.next_cursor;
-				} else {
-					*self.cursor.borrow_mut() = None;
-				}
+                if let Some(pagination) = payload.pagination {
+                    has_next_page = pagination.current_page < pagination.total_pages;
+                    *self.cursor.borrow_mut() = pagination.next_cursor;
+                } else {
+                    *self.cursor.borrow_mut() = None;
+                }
 
-				return Ok(MangaPageResult {
-					entries: payload
-						.manga_list
-						.map(|results| results.into_iter().map(Into::into).collect())
-						.unwrap_or_default(),
-					has_next_page,
-				});
-			}
-		} else {
-			// Requires new search api, or it doesn't work...
-			query_parameters.push("cursor", self.cursor.borrow().as_deref());
+                return Ok(MangaPageResult {
+                    entries: payload
+                        .manga_list
+                        .map(|results| results.into_iter().map(Into::into).collect())
+                        .unwrap_or_default(),
+                    has_next_page,
+                });
+            }
+        } else {
+            // Requires new search api, or it doesn't work...
+            query_parameters.push("cursor", self.cursor.borrow().as_deref());
 
-			let payload: SearchPayload =
-				get_json_data(&format!("{BASE_URL}/api/search?{query_parameters}"))?;
+            let payload: SearchPayload =
+                get_json_data(&format!("{BASE_URL}/api/search?{query_parameters}"))?;
 
-			let mut has_next_page = false;
+            let mut has_next_page = false;
 
-			if let Some(pagination) = payload.pagination {
-				has_next_page = pagination.current_page < pagination.total_pages;
-				*self.cursor.borrow_mut() = pagination.next_cursor;
-			} else {
-				*self.cursor.borrow_mut() = None;
-			}
+            if let Some(pagination) = payload.pagination {
+                has_next_page = pagination.current_page < pagination.total_pages;
+                *self.cursor.borrow_mut() = pagination.next_cursor;
+            } else {
+                *self.cursor.borrow_mut() = None;
+            }
 
-			return Ok(MangaPageResult {
-				entries: payload
-					.manga_list
-					.map(|results| results.into_iter().map(Into::into).collect())
-					.unwrap_or_default(),
-				has_next_page,
-			});
-		}
+            return Ok(MangaPageResult {
+                entries: payload
+                    .manga_list
+                    .map(|results| results.into_iter().map(Into::into).collect())
+                    .unwrap_or_default(),
+                has_next_page,
+            });
+        }
 
-		Ok(MangaPageResult::default())
-	}
+        Ok(MangaPageResult::default())
+    }
 
-	fn get_manga_update(
-		&self,
-		mut manga: Manga,
-		needs_details: bool,
-		needs_chapters: bool,
-	) -> Result<Manga> {
-		if needs_details {
-			let manga_detail_page: MangaDetailPage = get_page_container_json_data(&format!(
-				"{BASE_URL}/manga/{}.data?_routes=pages/MangaDetailPage",
-				manga.key
-			))?;
+    fn get_manga_update(
+        &self,
+        mut manga: Manga,
+        needs_details: bool,
+        needs_chapters: bool,
+    ) -> Result<Manga> {
+        if needs_details {
+            let manga_detail_page: MangaDetailPage = get_page_container_json_data(&format!(
+                "{BASE_URL}/manga/{}.data?_routes=pages/MangaDetailPage",
+                manga.key
+            ))?;
 
-			manga.copy_from(manga_detail_page.manga_data.manga.into());
+            manga.copy_from(manga_detail_page.manga_data.manga.into());
 
-			if needs_chapters {
-				send_partial_result(&manga)
-			}
-		}
+            if needs_chapters {
+                send_partial_result(&manga)
+            }
+        }
 
-		if needs_chapters {
-			let json: Vec<MangaChapter> =
-				get_json_data(&format!("{BASE_URL}/api/manga/{}/chapters/list", manga.key))?;
+        if needs_chapters {
+            let json: Vec<MangaChapter> =
+                get_json_data(&format!("{BASE_URL}/api/manga/{}/chapters/list", manga.key))?;
 
-			let mut chapter_map: HashMap<String, MangaChapter> = HashMap::new();
-			let mut chapter_list: Vec<MangaChapter> = Vec::new();
+            let mut chapter_map: HashMap<String, MangaChapter> = HashMap::new();
+            let mut chapter_list: Vec<MangaChapter> = Vec::new();
 
-			let supported_languages = get_languages()?;
-			let default_language = "en".into();
+            let supported_languages = get_languages()?;
+            let default_language = "en".into();
 
-			if deduped_chapter() {
-				for manga in json {
-					let manga_language = manga.language.as_ref().unwrap_or(&default_language);
-					if supported_languages
-						.iter()
-						.any(|language| language.eq(manga_language))
-					{
-						dedup_insert(&mut chapter_map, manga);
-					}
-				}
-			} else {
-				chapter_list.extend(json);
-			}
+            if deduped_chapter() {
+                for manga in json {
+                    let manga_language = manga.language.as_ref().unwrap_or(&default_language);
+                    if supported_languages
+                        .iter()
+                        .any(|language| language.eq(manga_language))
+                    {
+                        dedup_insert(&mut chapter_map, manga);
+                    }
+                }
+            } else {
+                chapter_list.extend(json);
+            }
 
-			let mut chapters: Vec<Chapter> = if deduped_chapter() {
-				chapter_map.into_values().map(Into::into).collect()
-			} else {
-				chapter_list
-					.into_iter()
-					.filter(|c| {
-						supported_languages.iter().any(|language| {
-							language.eq(c.language.as_ref().unwrap_or(&default_language))
-						})
-					})
-					.map(Into::into)
-					.collect()
-			};
+            let mut chapters: Vec<Chapter> = if deduped_chapter() {
+                chapter_map.into_values().map(Into::into).collect()
+            } else {
+                chapter_list
+                    .into_iter()
+                    .filter(|c| {
+                        supported_languages.iter().any(|language| {
+                            language.eq(c.language.as_ref().unwrap_or(&default_language))
+                        })
+                    })
+                    .map(Into::into)
+                    .collect()
+            };
 
-			if show_standalone_volume() {
-				let volumes_json: Vec<MangaVolume> =
-					get_json_data(&format!("{BASE_URL}/api/manga/{}/volumes", manga.key))?;
+            if show_standalone_volume() {
+                let volumes_json: Vec<MangaVolume> =
+                    get_json_data(&format!("{BASE_URL}/api/manga/{}/volumes", manga.key))?;
 
-				let mut volumes: Vec<Chapter> = volumes_json
-					.into_iter()
-					.filter(|c| {
-						supported_languages
-							.iter()
-							.any(|language| language.eq(&c.language))
-					})
-					.map(Into::into)
-					.collect();
-				chapters.append(&mut volumes);
-			}
+                let mut volumes: Vec<Chapter> = volumes_json
+                    .into_iter()
+                    .filter(|c| {
+                        supported_languages
+                            .iter()
+                            .any(|language| language.eq(&c.language))
+                    })
+                    .map(Into::into)
+                    .collect();
+                chapters.append(&mut volumes);
+            }
 
-			chapters.sort_by(|a, b| {
-				// 1) volume descending (None goes last)
-				match b
-					.volume_number
-					.partial_cmp(&a.volume_number)
-					.unwrap_or(Ordering::Equal)
-				{
-					Ordering::Equal => {
-						match (&a.chapter_number, &b.chapter_number) {
-							// 2) both have chapter numbers -> chapter descending
-							(Some(a_ch), Some(b_ch)) => {
-								b_ch.partial_cmp(a_ch).unwrap_or(Ordering::Equal)
-							}
+            chapters.sort_by(|a, b| {
+                // 1) volume descending (None goes last)
+                match b
+                    .volume_number
+                    .partial_cmp(&a.volume_number)
+                    .unwrap_or(Ordering::Equal)
+                {
+                    Ordering::Equal => {
+                        match (&a.chapter_number, &b.chapter_number) {
+                            // 2) both have chapter numbers -> chapter descending
+                            (Some(a_ch), Some(b_ch)) => {
+                                b_ch.partial_cmp(a_ch).unwrap_or(Ordering::Equal)
+                            }
 
-							// 3) chapter entries come before volume-only entries
-							(Some(_), None) => Ordering::Less,
-							(None, Some(_)) => Ordering::Greater,
+                            // 3) chapter entries come before volume-only entries
+                            (Some(_), None) => Ordering::Less,
+                            (None, Some(_)) => Ordering::Greater,
 
-							// 4) both volume-only
-							(None, None) => Ordering::Equal,
-						}
-					}
-					ord => ord,
-				}
-			});
+                            // 4) both volume-only
+                            (None, None) => Ordering::Equal,
+                        }
+                    }
+                    ord => ord,
+                }
+            });
 
-			manga.chapters = Some(chapters);
-		}
+            manga.chapters = Some(chapters);
+        }
 
-		Ok(manga)
-	}
+        Ok(manga)
+    }
 
-	fn get_page_list(&self, _manga: Manga, chapter: Chapter) -> Result<Vec<Page>> {
-		let json: MangaPage = if chapter.url.is_some_and(|url| url.contains("?source=user")) {
-			get_json_data(&format!("{BASE_URL}/api/uploads/{}/images", chapter.key))?
-		} else {
-			get_json_data(&format!("{BASE_URL}/api/chapters/{}/images", chapter.key))?
-		};
+    fn get_page_list(&self, _manga: Manga, chapter: Chapter) -> Result<Vec<Page>> {
+        let json: MangaPage = if chapter.url.is_some_and(|url| url.contains("?source=user")) {
+            get_json_data(&format!("{BASE_URL}/api/uploads/{}/images", chapter.key))?
+        } else {
+            get_json_data(&format!("{BASE_URL}/api/chapters/{}/images", chapter.key))?
+        };
 
-		Ok(json
-			.images
-			.into_iter()
-			.map(|page_image| Page {
-				content: PageContent::url(base_url_join(&page_image.url)),
-				..Default::default()
-			})
-			.collect())
-	}
+        Ok(json
+            .images
+            .into_iter()
+            .map(|page_image| Page {
+                content: PageContent::url(base_url_join(&page_image.url)),
+                ..Default::default()
+            })
+            .collect())
+    }
 }
 
 const LATEST_UPDATES_LISTING_ID: &str = "latest_updates";
@@ -293,333 +293,333 @@ const FOR_YOU_LISTING_ID: &str = "for_you";
 const BOOKMARKS_LISTING_ID: &str = "bookmarks";
 
 impl ListingProvider for Mangadotnet {
-	fn get_manga_list(&self, listing: Listing, page: i32) -> Result<MangaPageResult> {
-		match listing.id.as_str() {
-			BOOKMARKS_LISTING_ID => {
-				let bookmark_page_data: BookmarkPageData = get_json_data(&format!(
-					"{BASE_URL}/api/lists/manage?sort=updated&order=desc&per_page=50&page={page}"
-				))?;
+    fn get_manga_list(&self, listing: Listing, page: i32) -> Result<MangaPageResult> {
+        match listing.id.as_str() {
+            BOOKMARKS_LISTING_ID => {
+                let bookmark_page_data: BookmarkPageData = get_json_data(&format!(
+                    "{BASE_URL}/api/lists/manage?sort=updated&order=desc&per_page=50&page={page}"
+                ))?;
 
-				Ok(MangaPageResult {
-					entries: bookmark_page_data
-						.entries
-						.into_iter()
-						.map(Into::into)
-						.collect(),
-					has_next_page: bookmark_page_data.page * bookmark_page_data.per_page
-						< bookmark_page_data.total,
-				})
-			}
+                Ok(MangaPageResult {
+                    entries: bookmark_page_data
+                        .entries
+                        .into_iter()
+                        .map(Into::into)
+                        .collect(),
+                    has_next_page: bookmark_page_data.page * bookmark_page_data.per_page
+                        < bookmark_page_data.total,
+                })
+            }
 
-			FOR_YOU_LISTING_ID => {
-				let mut query_parameters = QueryParameters::new();
+            FOR_YOU_LISTING_ID => {
+                let mut query_parameters = QueryParameters::new();
 
-				if !hide_nsfw() {
-					query_parameters.push("adult", Some("both"));
-				}
+                if !hide_nsfw() {
+                    query_parameters.push("adult", Some("both"));
+                }
 
-				query_parameters.push("limit", Some("100"));
+                query_parameters.push("limit", Some("100"));
 
-				let listing_data: ListingSectionData =
-					get_json_data(&format!("{BASE_URL}/api/manga/for-you?{query_parameters}"))?;
+                let listing_data: ListingSectionData =
+                    get_json_data(&format!("{BASE_URL}/api/manga/for-you?{query_parameters}"))?;
 
-				Ok(MangaPageResult {
-					entries: listing_data.items.into_iter().map(Into::into).collect(),
-					has_next_page: false,
-				})
-			}
+                Ok(MangaPageResult {
+                    entries: listing_data.items.into_iter().map(Into::into).collect(),
+                    has_next_page: false,
+                })
+            }
 
-			_ => {
-				let mut query_parameters = QueryParameters::new();
+            _ => {
+                let mut query_parameters = QueryParameters::new();
 
-				if !hide_nsfw() {
-					query_parameters.push("adult", Some("both"));
-				}
+                if !hide_nsfw() {
+                    query_parameters.push("adult", Some("both"));
+                }
 
-				if page > 1 {
-					query_parameters.push("page", Some(&format!("{page}")));
-				}
+                if page > 1 {
+                    query_parameters.push("page", Some(&format!("{page}")));
+                }
 
-				if let Some(content_types) = get_default_content_types() {
-					for content_type in content_types.split(",") {
-						query_parameters.push("origin", Some(content_type));
-					}
-				}
+                if let Some(content_types) = get_default_content_types() {
+                    for content_type in content_types.split(",") {
+                        query_parameters.push("origin", Some(content_type));
+                    }
+                }
 
-				query_parameters.push("_routes", Some("pages/ViewAllPage"));
+                query_parameters.push("_routes", Some("pages/ViewAllPage"));
 
-				let view_all_page: ViewAllPage = get_page_container_json_data(&format!(
-					"{BASE_URL}/view-all/{}.data?{}",
-					match listing.id.as_str() {
-						LATEST_UPDATES_LISTING_ID => "latest-updates",
-						RECENTLY_ADDED_LISTING_ID => "recently-added",
-						MOST_TRACKED_LISTING_ID => "most-tracked",
-						TOP_RATED_LISTING_ID => "top-rated",
-						_ => bail!("Invalid listing id: {}", listing.id),
-					},
-					query_parameters
-				))?;
+                let view_all_page: ViewAllPage = get_page_container_json_data(&format!(
+                    "{BASE_URL}/view-all/{}.data?{}",
+                    match listing.id.as_str() {
+                        LATEST_UPDATES_LISTING_ID => "latest-updates",
+                        RECENTLY_ADDED_LISTING_ID => "recently-added",
+                        MOST_TRACKED_LISTING_ID => "most-tracked",
+                        TOP_RATED_LISTING_ID => "top-rated",
+                        _ => bail!("Invalid listing id: {}", listing.id),
+                    },
+                    query_parameters
+                ))?;
 
-				Ok(MangaPageResult {
-					entries: view_all_page
-						.data
-						.manga_list
-						.into_iter()
-						.map(Into::into)
-						.collect(),
-					has_next_page: view_all_page.data.pagination.current_page
-						< view_all_page.data.pagination.total_pages,
-				})
-			}
-		}
-	}
+                Ok(MangaPageResult {
+                    entries: view_all_page
+                        .data
+                        .manga_list
+                        .into_iter()
+                        .map(Into::into)
+                        .collect(),
+                    has_next_page: view_all_page.data.pagination.current_page
+                        < view_all_page.data.pagination.total_pages,
+                })
+            }
+        }
+    }
 }
 
 impl Home for Mangadotnet {
-	fn get_home(&self) -> Result<HomeLayout> {
-		let mut home_components = vec![
-			HomeComponent {
-				title: Some("Latest Updates".into()),
-				subtitle: Some("New Chapters".into()),
-				value: HomeComponentValue::empty_scroller(),
-			},
-			HomeComponent {
-				title: Some("Recently Added".into()),
-				subtitle: Some("New Titles".into()),
-				value: HomeComponentValue::empty_scroller(),
-			},
-			HomeComponent {
-				title: Some("Most Tracked".into()),
-				subtitle: Some("Reader Favorites".into()),
-				value: HomeComponentValue::empty_scroller(),
-			},
-			HomeComponent {
-				title: Some("Top Rated".into()),
-				subtitle: Some("Highest Scores".into()),
-				value: HomeComponentValue::empty_scroller(),
-			},
-		];
+    fn get_home(&self) -> Result<HomeLayout> {
+        let mut home_components = vec![
+            HomeComponent {
+                title: Some("Latest Updates".into()),
+                subtitle: Some("New Chapters".into()),
+                value: HomeComponentValue::empty_scroller(),
+            },
+            HomeComponent {
+                title: Some("Recently Added".into()),
+                subtitle: Some("New Titles".into()),
+                value: HomeComponentValue::empty_scroller(),
+            },
+            HomeComponent {
+                title: Some("Most Tracked".into()),
+                subtitle: Some("Reader Favorites".into()),
+                value: HomeComponentValue::empty_scroller(),
+            },
+            HomeComponent {
+                title: Some("Top Rated".into()),
+                subtitle: Some("Highest Scores".into()),
+                value: HomeComponentValue::empty_scroller(),
+            },
+        ];
 
-		let is_logged_in = is_logged_in();
+        let is_logged_in = is_logged_in();
 
-		if is_logged_in {
-			home_components.push(HomeComponent {
-				title: Some("For You".into()),
-				subtitle: Some("Based on your bookmarks".into()),
-				value: HomeComponentValue::empty_scroller(),
-			});
-		}
+        if is_logged_in {
+            home_components.push(HomeComponent {
+                title: Some("For You".into()),
+                subtitle: Some("Based on your bookmarks".into()),
+                value: HomeComponentValue::empty_scroller(),
+            });
+        }
 
-		send_partial_result(&HomePartialResult::Layout(HomeLayout {
-			components: home_components,
-		}));
+        send_partial_result(&HomePartialResult::Layout(HomeLayout {
+            components: home_components,
+        }));
 
-		for id in [
-			"latest_updates",
-			"recently_added",
-			"most_tracked",
-			"top_rated",
-		] {
-			let mut query_parameters = QueryParameters::new();
-			query_parameters.push("id", Some(id));
+        for id in [
+            "latest_updates",
+            "recently_added",
+            "most_tracked",
+            "top_rated",
+        ] {
+            let mut query_parameters = QueryParameters::new();
+            query_parameters.push("id", Some(id));
 
-			if !hide_nsfw() {
-				query_parameters.push("adult", Some("both"));
-			} else {
-				query_parameters.push("adult", Some("0"));
-			}
+            if !hide_nsfw() {
+                query_parameters.push("adult", Some("both"));
+            } else {
+                query_parameters.push("adult", Some("0"));
+            }
 
-			if let Some(content_types) = get_default_content_types() {
-				query_parameters.push("origin", Some(content_types.deref()));
-			}
+            if let Some(content_types) = get_default_content_types() {
+                query_parameters.push("origin", Some(content_types.deref()));
+            }
 
-			query_parameters.push("limit", Some("21"));
+            query_parameters.push("limit", Some("21"));
 
-			let listing_data: ListingSectionData =
-				get_json_data(&format!("{BASE_URL}/api/manga/section?{query_parameters}"))?;
+            let listing_data: ListingSectionData =
+                get_json_data(&format!("{BASE_URL}/api/manga/section?{query_parameters}"))?;
 
-			send_partial_result(&HomePartialResult::Component(HomeComponent {
-				title: match id {
-					"latest_updates" => Some("Latest Updates".into()),
-					"recently_added" => Some("Recently Added".into()),
-					"most_tracked" => Some("Most Tracked".into()),
-					"top_rated" => Some("Top Rated".into()),
-					_ => None,
-				},
-				subtitle: match id {
-					"latest_updates" => Some("New Chapters".into()),
-					"recently_added" => Some("New Titles".into()),
-					"most_tracked" => Some("Reader Favorites".into()),
-					"top_rated" => Some("Highest Scores".into()),
-					_ => None,
-				},
-				value: HomeComponentValue::Scroller {
-					entries: listing_data
-						.items
-						.into_iter()
-						.map(|manga| Manga::from(manga).into())
-						.collect(),
-					listing: match id {
-						"latest_updates" => Some(Listing {
-							id: LATEST_UPDATES_LISTING_ID.into(),
-							name: "Latest Updates".into(),
-							..Default::default()
-						}),
-						"recently_added" => Some(Listing {
-							id: RECENTLY_ADDED_LISTING_ID.into(),
-							name: "Recently Added".into(),
-							..Default::default()
-						}),
-						"most_tracked" => Some(Listing {
-							id: MOST_TRACKED_LISTING_ID.into(),
-							name: "Most Tracked".into(),
-							..Default::default()
-						}),
-						"top_rated" => Some(Listing {
-							id: TOP_RATED_LISTING_ID.into(),
-							name: "Top Rated".into(),
-							..Default::default()
-						}),
-						_ => None,
-					},
-				},
-			}));
-		}
+            send_partial_result(&HomePartialResult::Component(HomeComponent {
+                title: match id {
+                    "latest_updates" => Some("Latest Updates".into()),
+                    "recently_added" => Some("Recently Added".into()),
+                    "most_tracked" => Some("Most Tracked".into()),
+                    "top_rated" => Some("Top Rated".into()),
+                    _ => None,
+                },
+                subtitle: match id {
+                    "latest_updates" => Some("New Chapters".into()),
+                    "recently_added" => Some("New Titles".into()),
+                    "most_tracked" => Some("Reader Favorites".into()),
+                    "top_rated" => Some("Highest Scores".into()),
+                    _ => None,
+                },
+                value: HomeComponentValue::Scroller {
+                    entries: listing_data
+                        .items
+                        .into_iter()
+                        .map(|manga| Manga::from(manga).into())
+                        .collect(),
+                    listing: match id {
+                        "latest_updates" => Some(Listing {
+                            id: LATEST_UPDATES_LISTING_ID.into(),
+                            name: "Latest Updates".into(),
+                            ..Default::default()
+                        }),
+                        "recently_added" => Some(Listing {
+                            id: RECENTLY_ADDED_LISTING_ID.into(),
+                            name: "Recently Added".into(),
+                            ..Default::default()
+                        }),
+                        "most_tracked" => Some(Listing {
+                            id: MOST_TRACKED_LISTING_ID.into(),
+                            name: "Most Tracked".into(),
+                            ..Default::default()
+                        }),
+                        "top_rated" => Some(Listing {
+                            id: TOP_RATED_LISTING_ID.into(),
+                            name: "Top Rated".into(),
+                            ..Default::default()
+                        }),
+                        _ => None,
+                    },
+                },
+            }));
+        }
 
-		if is_logged_in {
-			let listing_data: ListingSectionData = get_json_data(&format!(
-				"{BASE_URL}/api/manga/for-you?adult={}&limit=21",
-				if hide_nsfw() { "0" } else { "both" }
-			))?;
+        if is_logged_in {
+            let listing_data: ListingSectionData = get_json_data(&format!(
+                "{BASE_URL}/api/manga/for-you?adult={}&limit=21",
+                if hide_nsfw() { "0" } else { "both" }
+            ))?;
 
-			send_partial_result(&HomePartialResult::Component(HomeComponent {
-				title: Some("For You".into()),
-				subtitle: Some("Based on your bookmarks".into()),
-				value: HomeComponentValue::Scroller {
-					entries: listing_data
-						.items
-						.into_iter()
-						.map(|manga| Manga::from(manga).into())
-						.collect(),
-					listing: Some(Listing {
-						id: FOR_YOU_LISTING_ID.into(),
-						name: "For You".into(),
-						..Default::default()
-					}),
-				},
-			}));
-		}
+            send_partial_result(&HomePartialResult::Component(HomeComponent {
+                title: Some("For You".into()),
+                subtitle: Some("Based on your bookmarks".into()),
+                value: HomeComponentValue::Scroller {
+                    entries: listing_data
+                        .items
+                        .into_iter()
+                        .map(|manga| Manga::from(manga).into())
+                        .collect(),
+                    listing: Some(Listing {
+                        id: FOR_YOU_LISTING_ID.into(),
+                        name: "For You".into(),
+                        ..Default::default()
+                    }),
+                },
+            }));
+        }
 
-		Ok(HomeLayout::default())
-	}
+        Ok(HomeLayout::default())
+    }
 }
 
 impl DeepLinkHandler for Mangadotnet {
-	fn handle_deep_link(&self, url: String) -> Result<Option<DeepLinkResult>> {
-		let Some(path) = url.strip_prefix(BASE_URL) else {
-			return Ok(None);
-		};
+    fn handle_deep_link(&self, url: String) -> Result<Option<DeepLinkResult>> {
+        let Some(path) = url.strip_prefix(BASE_URL) else {
+            return Ok(None);
+        };
 
-		// https://mangadot.net/manga/6953
-		// https://mangadot.net/chapter/533518#p=1
-		// https://mangadot.net/chapter/151856?source=user#p=1
+        // https://mangadot.net/manga/6953
+        // https://mangadot.net/chapter/533518#p=1
+        // https://mangadot.net/chapter/151856?source=user#p=1
 
-		let mut segments = path.trim_start_matches('/').split('/');
+        let mut segments = path.trim_start_matches('/').split('/');
 
-		if let (Some(kind), Some(id)) = (segments.next(), segments.next()) {
-			return Ok(match kind {
-				"manga" => Some(DeepLinkResult::Manga { key: id.into() }),
+        if let (Some(kind), Some(id)) = (segments.next(), segments.next()) {
+            return Ok(match kind {
+                "manga" => Some(DeepLinkResult::Manga { key: id.into() }),
 
-				"chapter" => {
-					if id.contains("source=user") {
-						// This is a user uploaded chapter
-						if let Some(chapter_id) = id.find('?').and_then(|idx| id.get(..idx)) {
-							let json: MangaPage = get_json_data(&format!(
-								"{BASE_URL}/api/uploads/{chapter_id}/images"
-							))?;
-							return Ok(Some(DeepLinkResult::Chapter {
-								manga_key: json.manga.id.to_string(),
-								key: json.chapter.id.to_string(),
-							}));
-						}
-					} else {
-						if let Some(chapter_id) = id.find('#').and_then(|idx| id.get(..idx)) {
-							let json: MangaPage = get_json_data(&format!(
-								"{BASE_URL}/api/chapters/{chapter_id}/images"
-							))?;
-							return Ok(Some(DeepLinkResult::Chapter {
-								manga_key: json.manga.id.to_string(),
-								key: json.chapter.id.to_string(),
-							}));
-						}
-					}
-					None
-				}
+                "chapter" => {
+                    if id.contains("source=user") {
+                        // This is a user uploaded chapter
+                        if let Some(chapter_id) = id.find('?').and_then(|idx| id.get(..idx)) {
+                            let json: MangaPage = get_json_data(&format!(
+                                "{BASE_URL}/api/uploads/{chapter_id}/images"
+                            ))?;
+                            return Ok(Some(DeepLinkResult::Chapter {
+                                manga_key: json.manga.id.to_string(),
+                                key: json.chapter.id.to_string(),
+                            }));
+                        }
+                    } else {
+                        if let Some(chapter_id) = id.find('#').and_then(|idx| id.get(..idx)) {
+                            let json: MangaPage = get_json_data(&format!(
+                                "{BASE_URL}/api/chapters/{chapter_id}/images"
+                            ))?;
+                            return Ok(Some(DeepLinkResult::Chapter {
+                                manga_key: json.manga.id.to_string(),
+                                key: json.chapter.id.to_string(),
+                            }));
+                        }
+                    }
+                    None
+                }
 
-				"volume" => {
-					let json: MangaPage =
-						get_json_data(&format!("{BASE_URL}/api/uploads/{id}/images"))?;
-					return Ok(Some(DeepLinkResult::Chapter {
-						manga_key: json.manga.id.to_string(),
-						key: json.chapter.id.to_string(),
-					}));
-				}
+                "volume" => {
+                    let json: MangaPage =
+                        get_json_data(&format!("{BASE_URL}/api/uploads/{id}/images"))?;
+                    return Ok(Some(DeepLinkResult::Chapter {
+                        manga_key: json.manga.id.to_string(),
+                        key: json.chapter.id.to_string(),
+                    }));
+                }
 
-				_ => None,
-			});
-		}
+                _ => None,
+            });
+        }
 
-		Ok(None)
-	}
+        Ok(None)
+    }
 }
 
 impl DynamicListings for Mangadotnet {
-	fn get_dynamic_listings(&self) -> Result<Vec<Listing>> {
-		let mut listings: Vec<Listing> = Vec::new();
+    fn get_dynamic_listings(&self) -> Result<Vec<Listing>> {
+        let mut listings: Vec<Listing> = Vec::new();
 
-		if is_logged_in() {
-			listings.push(Listing {
-				id: BOOKMARKS_LISTING_ID.into(),
-				name: "Your Bookmarks".into(),
-				..Default::default()
-			});
-		}
+        if is_logged_in() {
+            listings.push(Listing {
+                id: BOOKMARKS_LISTING_ID.into(),
+                name: "Your Bookmarks".into(),
+                ..Default::default()
+            });
+        }
 
-		Ok(listings)
-	}
+        Ok(listings)
+    }
 }
 
 impl NotificationHandler for Mangadotnet {
-	fn handle_notification(&self, notification: String) {
-		if notification == NOTIFICATION_RESET_FILTERS_KEY {
-			reset_filters();
-		} else if notification == NOTIFICATION_RESET_DEDUPED_GROUP_KEY {
-			reset_deduped_group_list();
-		}
-	}
+    fn handle_notification(&self, notification: String) {
+        if notification == NOTIFICATION_RESET_FILTERS_KEY {
+            reset_filters();
+        } else if notification == NOTIFICATION_RESET_DEDUPED_GROUP_KEY {
+            reset_deduped_group_list();
+        }
+    }
 }
 
 const LOGIN_COOKIE_KEY: &str = "ory_kratos_session";
 const CLOUDFLARE_COOKIE_KEY: &str = "cf_clearance";
 
 impl WebLoginHandler for Mangadotnet {
-	fn handle_web_login(&self, key: String, cookies: HashMap<String, String>) -> Result<bool> {
-		if key == LOGIN_KEY {
-			Ok(cookies.contains_key(LOGIN_COOKIE_KEY))
-		} else if key == CLOUDFLARE_KEY {
-			Ok(cookies.contains_key(CLOUDFLARE_COOKIE_KEY))
-		} else {
-			Ok(false)
-		}
-	}
+    fn handle_web_login(&self, key: String, cookies: HashMap<String, String>) -> Result<bool> {
+        if key == LOGIN_KEY {
+            Ok(cookies.contains_key(LOGIN_COOKIE_KEY))
+        } else if key == CLOUDFLARE_KEY {
+            Ok(cookies.contains_key(CLOUDFLARE_COOKIE_KEY))
+        } else {
+            Ok(false)
+        }
+    }
 }
 
 register_source!(
-	Mangadotnet,
-	ListingProvider,
-	Home,
-	DeepLinkHandler,
-	DynamicListings,
-	NotificationHandler,
-	WebLoginHandler
+    Mangadotnet,
+    ListingProvider,
+    Home,
+    DeepLinkHandler,
+    DynamicListings,
+    NotificationHandler,
+    WebLoginHandler
 );

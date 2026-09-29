@@ -1,14 +1,14 @@
 // reference: https://github.com/nobottomline/extensions-source/blob/c8fe930f315f3baee23587559edfceab5e969202/src/en/comix/src/eu/kanade/tachiyomi/extension/en/comix/Signer.kt
 use crate::{BASE_URL, helpers::create_request_get, models::ErrorResponse};
 use aidoku::{
-	HashMap, Result,
-	alloc::{string::String, string::ToString, vec::Vec},
-	helpers::uri::QueryParameters,
-	imports::{
-		js::WebView,
-		net::{Request, Response},
-	},
-	prelude::*,
+    HashMap, Result,
+    alloc::{string::String, string::ToString, vec::Vec},
+    helpers::uri::QueryParameters,
+    imports::{
+        js::WebView,
+        net::{Request, Response},
+    },
+    prelude::*,
 };
 use regex::Regex;
 use serde::{Deserialize, de::DeserializeOwned};
@@ -33,96 +33,96 @@ const WAF_CHALLENGE_ERROR_MESSAGE: &str = "Response returned WAF challenge page 
 
 #[derive(Deserialize)]
 struct AxiosRequest {
-	url: String,
-	params: Option<HashMap<String, Value>>,
+    url: String,
+    params: Option<HashMap<String, Value>>,
 }
 
 pub struct ComixWebView {
-	web_view: WebView,
-	is_initialized: bool,
+    web_view: WebView,
+    is_initialized: bool,
 }
 
 impl ComixWebView {
-	pub fn new() -> Self {
-		Self {
-			web_view: WebView::new(),
-			is_initialized: false,
-		}
-	}
+    pub fn new() -> Self {
+        Self {
+            web_view: WebView::new(),
+            is_initialized: false,
+        }
+    }
 
-	fn load_webview(&mut self) -> Result<()> {
-		let request = create_request_get(BASE_URL)?;
-		let response = request.send()?;
+    fn load_webview(&mut self) -> Result<()> {
+        let request = create_request_get(BASE_URL)?;
+        let response = request.send()?;
 
-		let status_code = response.status_code();
+        let status_code = response.status_code();
 
-		if status_code == 403
-			&& response
-				.get_header("cf-mitigated")
-				.is_some_and(|value| value == "challenge")
-		{
-			bail!("{CF_CHALLENGE_HTML_ERROR_MESSAGE}")
-		} else if status_code >= 400 {
-			bail!("Response Error: {}", response.status_code())
-		} else if response
-			.get_html()?
-			.select_first("head > title")
-			.is_some_and(|e| e.text().is_some_and(|t| t == "Security check"))
-		{
-			bail!("{}", WAF_CHALLENGE_HTML_ERROR_MESSAGE)
-		}
+        if status_code == 403
+            && response
+                .get_header("cf-mitigated")
+                .is_some_and(|value| value == "challenge")
+        {
+            bail!("{CF_CHALLENGE_HTML_ERROR_MESSAGE}")
+        } else if status_code >= 400 {
+            bail!("Response Error: {}", response.status_code())
+        } else if response
+            .get_html()?
+            .select_first("head > title")
+            .is_some_and(|e| e.text().is_some_and(|t| t == "Security check"))
+        {
+            bail!("{}", WAF_CHALLENGE_HTML_ERROR_MESSAGE)
+        }
 
-		self.web_view
-			.load_html_blocking(response.get_string()?.as_str(), Some(BASE_URL))?;
-		if self.find_functions().is_err() {
-			self.find_secure_module_src(&response)?;
-			self.find_functions()?;
-		}
-		self.is_initialized = true;
-		Ok(())
-	}
+        self.web_view
+            .load_html_blocking(response.get_string()?.as_str(), Some(BASE_URL))?;
+        if self.find_functions().is_err() {
+            self.find_secure_module_src(&response)?;
+            self.find_functions()?;
+        }
+        self.is_initialized = true;
+        Ok(())
+    }
 
-	fn find_secure_module_src(&mut self, response: &Response) -> Result<()> {
-		let main_module_src = response
-			.get_html()?
-			.select("head > script[type=\"module\"][src*=\"main\"]")
-			.and_then(|e| e.first())
-			.and_then(|e| e.attr("src"))
-			.ok_or(error!("Main module not found"))?;
-		if let Some(js_asset_path_index) = main_module_src.rfind("/") {
-			let js_asset_path = &main_module_src[0..js_asset_path_index + 1];
-			let secure_script_regex = Regex::new("(secure-[A-Za-z0-9-_]+?\\.js)").unwrap();
-			let main_module_contents =
-				Request::get(format!("{BASE_URL}{main_module_src}"))?.string()?;
-			if let Some(secure_script_path) = secure_script_regex
-				.captures(main_module_contents.as_str())
-				.and_then(|captures| captures.get(1).map(|m| m.as_str()))
-			{
-				self.web_view.eval(&format!(
-					"(() => {{
+    fn find_secure_module_src(&mut self, response: &Response) -> Result<()> {
+        let main_module_src = response
+            .get_html()?
+            .select("head > script[type=\"module\"][src*=\"main\"]")
+            .and_then(|e| e.first())
+            .and_then(|e| e.attr("src"))
+            .ok_or(error!("Main module not found"))?;
+        if let Some(js_asset_path_index) = main_module_src.rfind("/") {
+            let js_asset_path = &main_module_src[0..js_asset_path_index + 1];
+            let secure_script_regex = Regex::new("(secure-[A-Za-z0-9-_]+?\\.js)").unwrap();
+            let main_module_contents =
+                Request::get(format!("{BASE_URL}{main_module_src}"))?.string()?;
+            if let Some(secure_script_path) = secure_script_regex
+                .captures(main_module_contents.as_str())
+                .and_then(|captures| captures.get(1).map(|m| m.as_str()))
+            {
+                self.web_view.eval(&format!(
+                    "(() => {{
 						import('{BASE_URL}{js_asset_path}{secure_script_path}')
 							.then((m) => window['vm'] = m)
 							.catch((e) => window['vm'] = {{}});
 						return '';
 					}})()"
-				))?;
-				while self
-					.web_view
-					.eval("(() => { return window['vm'] == null ? 'true' : 'false'; })()")?
-					== "true"
-				{}
-				Ok(())
-			} else {
-				bail!("Secure module not found");
-			}
-		} else {
-			bail!("Invalid path")
-		}
-	}
+                ))?;
+                while self
+                    .web_view
+                    .eval("(() => { return window['vm'] == null ? 'true' : 'false'; })()")?
+                    == "true"
+                {}
+                Ok(())
+            } else {
+                bail!("Secure module not found");
+            }
+        } else {
+            bail!("Invalid path")
+        }
+    }
 
-	fn find_functions(&mut self) -> Result<()> {
-		let result = self.web_view.eval(&format!(
-			"(() => {{
+    fn find_functions(&mut self) -> Result<()> {
+        let result = self.web_view.eval(&format!(
+            "(() => {{
 			try {{
 				{GET_VMOBJ_JS}
 				let fnames = Object.keys(vmObj);
@@ -161,21 +161,21 @@ impl ComixWebView {
 			}} catch (e) {{}}
 			return '';
 		}})()",
-		))?;
-		let expr: Vec<&str> = result.split("||").collect();
-		if expr.is_empty() || expr[0].is_empty() {
-			bail!("Failed to find installer function");
-		}
-		Ok(())
-	}
+        ))?;
+        let expr: Vec<&str> = result.split("||").collect();
+        if expr.is_empty() || expr[0].is_empty() {
+            bail!("Failed to find installer function");
+        }
+        Ok(())
+    }
 
-	pub fn build_request(&mut self, url: &str) -> Result<Request> {
-		if !self.is_initialized {
-			self.load_webview()?
-		}
+    pub fn build_request(&mut self, url: &str) -> Result<Request> {
+        if !self.is_initialized {
+            self.load_webview()?
+        }
 
-		let result = self.web_view.eval(&format!(
-			"(() => {{
+        let result = self.web_view.eval(&format!(
+            "(() => {{
 			const url = new URL('{url}');
 			const result = {{}};
 
@@ -219,107 +219,107 @@ impl ComixWebView {
 
 			return JSON.stringify(request);
 		}})()"
-		))?;
+        ))?;
 
-		let axios_request: AxiosRequest = serde_json::from_str(result.as_str())?;
+        let axios_request: AxiosRequest = serde_json::from_str(result.as_str())?;
 
-		fn build_query(params_map: &HashMap<String, Value>) -> QueryParameters {
-			let mut params = QueryParameters::new();
+        fn build_query(params_map: &HashMap<String, Value>) -> QueryParameters {
+            let mut params = QueryParameters::new();
 
-			for (key, value) in params_map {
-				push_value(&mut params, key, value);
-			}
+            for (key, value) in params_map {
+                push_value(&mut params, key, value);
+            }
 
-			params
-		}
+            params
+        }
 
-		fn push_value(params: &mut QueryParameters, key: &str, value: &Value) {
-			match value {
-				Value::Null => {
-					params.push_key(key);
-				}
+        fn push_value(params: &mut QueryParameters, key: &str, value: &Value) {
+            match value {
+                Value::Null => {
+                    params.push_key(key);
+                }
 
-				Value::Bool(_) | Value::Number(_) | Value::String(_) => {
-					let value_str = value.to_string();
+                Value::Bool(_) | Value::Number(_) | Value::String(_) => {
+                    let value_str = value.to_string();
 
-					// Remove JSON string quotes
-					let value_str = match value {
-						Value::String(s) => s.as_str(),
-						_ => value_str.as_str(),
-					};
+                    // Remove JSON string quotes
+                    let value_str = match value {
+                        Value::String(s) => s.as_str(),
+                        _ => value_str.as_str(),
+                    };
 
-					params.push(key, Some(value_str));
-				}
+                    params.push(key, Some(value_str));
+                }
 
-				Value::Array(arr) => {
-					let array_key = format!("{key}[]");
+                Value::Array(arr) => {
+                    let array_key = format!("{key}[]");
 
-					for item in arr {
-						match item {
-							Value::String(s) => {
-								params.push(&array_key, Some(s));
-							}
-							_ => {
-								let value_str = item.to_string();
-								params.push(&array_key, Some(&value_str));
-							}
-						}
-					}
-				}
+                    for item in arr {
+                        match item {
+                            Value::String(s) => {
+                                params.push(&array_key, Some(s));
+                            }
+                            _ => {
+                                let value_str = item.to_string();
+                                params.push(&array_key, Some(&value_str));
+                            }
+                        }
+                    }
+                }
 
-				Value::Object(obj) => {
-					for (child_key, child_value) in obj {
-						let nested_key = format!("{key}[{child_key}]");
-						push_value(params, &nested_key, child_value);
-					}
-				}
-			}
-		}
+                Value::Object(obj) => {
+                    for (child_key, child_value) in obj {
+                        let nested_key = format!("{key}[{child_key}]");
+                        push_value(params, &nested_key, child_value);
+                    }
+                }
+            }
+        }
 
-		if let Some(params) = axios_request.params {
-			let query = build_query(&params);
-			create_request_get(&format!("{}?{query}", axios_request.url))
-		} else {
-			create_request_get(&axios_request.url)
-		}
-	}
+        if let Some(params) = axios_request.params {
+            let query = build_query(&params);
+            create_request_get(&format!("{}?{query}", axios_request.url))
+        } else {
+            create_request_get(&axios_request.url)
+        }
+    }
 
-	pub fn decode_json_owned<T>(&mut self, response: &Response) -> Result<T>
-	where
-		T: DeserializeOwned,
-	{
-		if !self.is_initialized {
-			self.load_webview()?;
-		}
+    pub fn decode_json_owned<T>(&mut self, response: &Response) -> Result<T>
+    where
+        T: DeserializeOwned,
+    {
+        if !self.is_initialized {
+            self.load_webview()?;
+        }
 
-		let status_code = response.status_code();
+        let status_code = response.status_code();
 
-		if status_code == 403
-			&& response
-				.get_header("cf-mitigated")
-				.is_some_and(|value| value == "challenge")
-		{
-			bail!("{CF_CHALLENGE_ERROR_MESSAGE}")
-		} else if status_code >= 400 {
-			if response.status_code() == 403
-				&& serde_json::from_slice::<ErrorResponse>(&response.get_data()?)
-					.is_ok_and(|e| e.error == WAF_CHALLENGE_KEY)
-			{
-				bail!("{}", WAF_CHALLENGE_ERROR_MESSAGE)
-			} else {
-				bail!("Response Error: {}", response.status_code())
-			}
-		} else if response
-			.get_header("x-enc")
-			.is_some_and(|value| value == "1")
-		{
-			let encoded_response = response
-				.get_string()?
-				.replace("\\", "\\\\")
-				.replace("'", "\\'");
+        if status_code == 403
+            && response
+                .get_header("cf-mitigated")
+                .is_some_and(|value| value == "challenge")
+        {
+            bail!("{CF_CHALLENGE_ERROR_MESSAGE}")
+        } else if status_code >= 400 {
+            if response.status_code() == 403
+                && serde_json::from_slice::<ErrorResponse>(&response.get_data()?)
+                    .is_ok_and(|e| e.error == WAF_CHALLENGE_KEY)
+            {
+                bail!("{}", WAF_CHALLENGE_ERROR_MESSAGE)
+            } else {
+                bail!("Response Error: {}", response.status_code())
+            }
+        } else if response
+            .get_header("x-enc")
+            .is_some_and(|value| value == "1")
+        {
+            let encoded_response = response
+                .get_string()?
+                .replace("\\", "\\\\")
+                .replace("'", "\\'");
 
-			let result = self.web_view.eval(&format!(
-				"(() => {{
+            let result = self.web_view.eval(&format!(
+                "(() => {{
 					try {{
 						let decoded = window['{INSTALLER_RESPONSE_TOKEN}']({{
 							data: JSON.parse('{encoded_response}'),
@@ -333,18 +333,18 @@ impl ComixWebView {
 						return 'error: ' + e;
 					}}
 				}})()",
-			))?;
+            ))?;
 
-			if result.starts_with("error:") {
-				bail!("{result}");
-			} else if result.is_empty() {
-				bail!("Failed to fetch result")
-			}
+            if result.starts_with("error:") {
+                bail!("{result}");
+            } else if result.is_empty() {
+                bail!("Failed to fetch result")
+            }
 
-			serde_json::from_str(&result).map_err(|e| error!("Invalid json: {}", e))
-		} else {
-			let json_str = response.get_string()?;
-			serde_json::from_str(&json_str).map_err(|e| error!("Invalid json: {}", e))
-		}
-	}
+            serde_json::from_str(&result).map_err(|e| error!("Invalid json: {}", e))
+        } else {
+            let json_str = response.get_string()?;
+            serde_json::from_str(&json_str).map_err(|e| error!("Invalid json: {}", e))
+        }
+    }
 }

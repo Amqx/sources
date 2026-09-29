@@ -5,8 +5,8 @@ use serde::Deserialize;
 // ("/public/key/?id=...").
 #[derive(Deserialize)]
 pub struct ChapterApiResponse {
-	#[serde(default)]
-	pub c: String,
-	#[serde(default)]
-	pub e: Vec<String>,
+    #[serde(default)]
+    pub c: String,
+    #[serde(default)]
+    pub e: Vec<String>,
 }

@@ -7,22 +7,22 @@ const BASE_URL: &str = "https://kanzenin.info";
 struct Kanzenin;
 
 impl Impl for Kanzenin {
-	fn new() -> Self {
-		Self
-	}
+    fn new() -> Self {
+        Self
+    }
 
-	fn params(&self) -> Params {
-		Params {
-			base_url: BASE_URL.into(),
-			date_locale: "id".into(),
-			..Default::default()
-		}
-	}
+    fn params(&self) -> Params {
+        Params {
+            base_url: BASE_URL.into(),
+            date_locale: "id".into(),
+            ..Default::default()
+        }
+    }
 }
 
 register_source!(
-	MangaThemesia<Kanzenin>,
-	Home,
-	ImageRequestProvider,
-	DeepLinkHandler
+    MangaThemesia<Kanzenin>,
+    Home,
+    ImageRequestProvider,
+    DeepLinkHandler
 );

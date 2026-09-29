@@ -1,9 +1,9 @@
 use crate::{CLOUDFLARE_COOKIE_KEY, LOGIN_COOKIE_KEY};
 use aidoku::{
-	alloc::{string::String, vec, vec::Vec},
-	error,
-	imports::defaults::{DefaultValue, defaults_get, defaults_get_map, defaults_set},
-	imports::error::Result,
+    alloc::{string::String, vec, vec::Vec},
+    error,
+    imports::defaults::{DefaultValue, defaults_get, defaults_get_map, defaults_set},
+    imports::error::Result,
 };
 
 const LANGUAGES_KEY: &str = "languages";
@@ -22,43 +22,43 @@ const DEFAULT_CONTENT_TYPES_KEY: &str = "contentTypes";
 pub const NOTIFICATION_RESET_FILTERS_KEY: &str = "resetFilters";
 
 pub fn get_languages() -> Result<Vec<String>> {
-	defaults_get::<Vec<String>>(LANGUAGES_KEY).ok_or(error!("No languages found"))
+    defaults_get::<Vec<String>>(LANGUAGES_KEY).ok_or(error!("No languages found"))
 }
 
 pub fn hide_nsfw() -> bool {
-	defaults_get::<bool>(HIDE_NSFW_KEY).unwrap_or(true)
+    defaults_get::<bool>(HIDE_NSFW_KEY).unwrap_or(true)
 }
 
 pub fn deduped_chapter() -> bool {
-	defaults_get::<bool>(DEDUPED_CHAPTER_KEY).unwrap_or(false)
+    defaults_get::<bool>(DEDUPED_CHAPTER_KEY).unwrap_or(false)
 }
 
 pub fn show_standalone_volume() -> bool {
-	defaults_get::<bool>(SHOW_STANDALONE_VOLUME_KEY).unwrap_or(false)
+    defaults_get::<bool>(SHOW_STANDALONE_VOLUME_KEY).unwrap_or(false)
 }
 
 pub fn get_login_cookie() -> Option<String> {
-	defaults_get_map(LOGIN_KEY)?.get(LOGIN_COOKIE_KEY).cloned()
+    defaults_get_map(LOGIN_KEY)?.get(LOGIN_COOKIE_KEY).cloned()
 }
 
 pub fn get_cloudflare_cookie() -> Option<String> {
-	defaults_get_map(CLOUDFLARE_KEY)?
-		.get(CLOUDFLARE_COOKIE_KEY)
-		.cloned()
+    defaults_get_map(CLOUDFLARE_KEY)?
+        .get(CLOUDFLARE_COOKIE_KEY)
+        .cloned()
 }
 
 pub fn get_deduped_group_list() -> Vec<String> {
-	defaults_get::<Vec<String>>(DEDUPED_GROUP_KEY).unwrap_or(vec![])
+    defaults_get::<Vec<String>>(DEDUPED_GROUP_KEY).unwrap_or(vec![])
 }
 
 pub fn reset_deduped_group_list() {
-	defaults_set(DEDUPED_GROUP_KEY, DefaultValue::Null)
+    defaults_set(DEDUPED_GROUP_KEY, DefaultValue::Null)
 }
 
 pub fn get_default_content_types() -> Option<String> {
-	defaults_get::<Vec<String>>(DEFAULT_CONTENT_TYPES_KEY).map(|ids| ids.join(","))
+    defaults_get::<Vec<String>>(DEFAULT_CONTENT_TYPES_KEY).map(|ids| ids.join(","))
 }
 
 pub fn reset_filters() {
-	defaults_set(DEFAULT_CONTENT_TYPES_KEY, DefaultValue::Null)
+    defaults_set(DEFAULT_CONTENT_TYPES_KEY, DefaultValue::Null)
 }

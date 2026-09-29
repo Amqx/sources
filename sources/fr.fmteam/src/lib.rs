@@ -7,15 +7,15 @@ const BASE_URL: &str = "https://fmteam.fr";
 struct FMTeam;
 
 impl Impl for FMTeam {
-	fn new() -> Self {
-		Self
-	}
+    fn new() -> Self {
+        Self
+    }
 
-	fn params(&self) -> Params {
-		Params {
-			base_url: BASE_URL.into(),
-		}
-	}
+    fn params(&self) -> Params {
+        Params {
+            base_url: BASE_URL.into(),
+        }
+    }
 }
 
 register_source!(PizzaReader<FMTeam>, DynamicFilters, DeepLinkHandler);

@@ -7,21 +7,21 @@ const BASE_URL: &str = "https://athreascans.com";
 struct AthreaScans;
 
 impl Impl for AthreaScans {
-	fn new() -> Self {
-		Self
-	}
+    fn new() -> Self {
+        Self
+    }
 
-	fn params(&self) -> Params {
-		Params {
-			base_url: BASE_URL.into(),
-			..Default::default()
-		}
-	}
+    fn params(&self) -> Params {
+        Params {
+            base_url: BASE_URL.into(),
+            ..Default::default()
+        }
+    }
 }
 
 register_source!(
-	MangaThemesia<AthreaScans>,
-	Home,
-	ImageRequestProvider,
-	DeepLinkHandler
+    MangaThemesia<AthreaScans>,
+    Home,
+    ImageRequestProvider,
+    DeepLinkHandler
 );

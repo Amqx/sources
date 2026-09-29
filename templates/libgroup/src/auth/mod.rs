@@ -1,19 +1,19 @@
 use aidoku::{
-	AidokuError, Result,
-	alloc::{String, string::ToString},
-	imports::{
-		defaults::{DefaultValue, defaults_get, defaults_get_json, defaults_set},
-		net::{Request, Response},
-	},
-	prelude::*,
+    AidokuError, Result,
+    alloc::{String, string::ToString},
+    imports::{
+        defaults::{DefaultValue, defaults_get, defaults_get_json, defaults_set},
+        net::{Request, Response},
+    },
+    prelude::*,
 };
 
 use crate::{
-	context::Context,
-	endpoints::Url,
-	json::ResponseJsonExt,
-	models::responses::{LocalStorageWrapper, TokenResponse, UserResponse},
-	settings::get_api_url,
+    context::Context,
+    endpoints::Url,
+    json::ResponseJsonExt,
+    models::responses::{LocalStorageWrapper, TokenResponse, UserResponse},
+    settings::get_api_url,
 };
 
 const TOKEN_KEY: &str = "login";
@@ -33,118 +33,118 @@ const CONTENT_TYPE_FORM: &str = "application/x-www-form-urlencoded";
 const AUTH_SCHEME: &str = "Bearer";
 
 pub trait AuthRequest {
-	fn authed(self, ctx: &Context) -> Result<Response>;
+    fn authed(self, ctx: &Context) -> Result<Response>;
 }
 
 impl AuthRequest for Request {
-	fn authed(mut self, ctx: &Context) -> Result<Response> {
-		self = self
-			.header("Origin", &ctx.base_url)
-			.header("Referer", &ctx.api_url)
-			.header("Site-Id", &ctx.site_id.to_string())
-			.header("User-Agent", USER_AGENT);
+    fn authed(mut self, ctx: &Context) -> Result<Response> {
+        self = self
+            .header("Origin", &ctx.base_url)
+            .header("Referer", &ctx.api_url)
+            .header("Site-Id", &ctx.site_id.to_string())
+            .header("User-Agent", USER_AGENT);
 
-		if let Ok(token) = get_token()
-			&& let Some(access_token) = &token.access_token
-		{
-			let scheme = token.token_type.as_deref().unwrap_or(AUTH_SCHEME);
-			self = self.header(HEADER_AUTH, &format!("{scheme} {access_token}"));
-		}
+        if let Ok(token) = get_token()
+            && let Some(access_token) = &token.access_token
+        {
+            let scheme = token.token_type.as_deref().unwrap_or(AUTH_SCHEME);
+            self = self.header(HEADER_AUTH, &format!("{scheme} {access_token}"));
+        }
 
-		let response = self.send()?;
+        let response = self.send()?;
 
-		// Try refresh and retry once
-		if response.status_code() == 401
-			&& refresh_token().is_ok()
-			&& let Ok(new_token) = get_token()
-			&& let Some(access_token) = &new_token.access_token
-		{
-			let scheme = new_token.token_type.as_deref().unwrap_or(AUTH_SCHEME);
-			return Ok(response
-				.into_request()
-				.header("Origin", &ctx.base_url)
-				.header("Referer", &ctx.api_url)
-				.header("Site-Id", &ctx.site_id.to_string())
-				.header("User-Agent", USER_AGENT)
-				.header(HEADER_AUTH, &format!("{scheme} {access_token}"))
-				.send()?);
-		}
+        // Try refresh and retry once
+        if response.status_code() == 401
+            && refresh_token().is_ok()
+            && let Ok(new_token) = get_token()
+            && let Some(access_token) = &new_token.access_token
+        {
+            let scheme = new_token.token_type.as_deref().unwrap_or(AUTH_SCHEME);
+            return Ok(response
+                .into_request()
+                .header("Origin", &ctx.base_url)
+                .header("Referer", &ctx.api_url)
+                .header("Site-Id", &ctx.site_id.to_string())
+                .header("User-Agent", USER_AGENT)
+                .header(HEADER_AUTH, &format!("{scheme} {access_token}"))
+                .send()?);
+        }
 
-		Ok(response)
-	}
+        Ok(response)
+    }
 }
 
 /// Retrieves the stored authentication token from defaults.
 fn get_token() -> Result<TokenResponse> {
-	if let Ok(token) = defaults_get_json::<TokenResponse>(TOKEN_KEY) {
-		return Ok(token);
-	}
-	if let Ok(wrapper) = defaults_get_json::<LocalStorageWrapper>(AUTH_KEY) {
-		return Ok(wrapper.token);
-	}
-	bail!("No token")
+    if let Ok(token) = defaults_get_json::<TokenResponse>(TOKEN_KEY) {
+        return Ok(token);
+    }
+    if let Ok(wrapper) = defaults_get_json::<LocalStorageWrapper>(AUTH_KEY) {
+        return Ok(wrapper.token);
+    }
+    bail!("No token")
 }
 
 pub fn is_authorized() -> bool {
-	get_token().is_ok()
+    get_token().is_ok()
 }
 
 /// Retrieves the stored user ID from defaults.
 /// If no user ID is stored but we have a valid token, fetches and stores it automatically.
 pub fn get_user_id(ctx: &Context) -> Option<i32> {
-	if let Some(id) = defaults_get::<i32>(USER_ID_KEY).filter(|&id| id != 0) {
-		return Some(id);
-	}
+    if let Some(id) = defaults_get::<i32>(USER_ID_KEY).filter(|&id| id != 0) {
+        return Some(id);
+    }
 
-	if get_token().is_ok() && fetch_and_store_user_id(ctx).is_ok() {
-		defaults_get::<i32>(USER_ID_KEY).filter(|&id| id != 0)
-	} else {
-		None
-	}
+    if get_token().is_ok() && fetch_and_store_user_id(ctx).is_ok() {
+        defaults_get::<i32>(USER_ID_KEY).filter(|&id| id != 0)
+    } else {
+        None
+    }
 }
 
 /// Clears the stored user ID (called when token changes)
 pub fn clear_user_id() {
-	defaults_set(USER_ID_KEY, DefaultValue::Null);
+    defaults_set(USER_ID_KEY, DefaultValue::Null);
 }
 
 /// Stores the authentication token JSON string into defaults.
 fn set_token(token_json: String) {
-	defaults_set(TOKEN_KEY, DefaultValue::String(token_json));
+    defaults_set(TOKEN_KEY, DefaultValue::String(token_json));
 }
 
 /// Fetches user ID from API and stores it.
 fn fetch_and_store_user_id(ctx: &Context) -> Result<()> {
-	let user_response = Request::get(Url::auth_me(&get_api_url()))?
-		.authed(ctx)?
-		.parse_json::<UserResponse>()?;
+    let user_response = Request::get(Url::auth_me(&get_api_url()))?
+        .authed(ctx)?
+        .parse_json::<UserResponse>()?;
 
-	defaults_set(USER_ID_KEY, DefaultValue::Int(user_response.data.id));
-	Ok(())
+    defaults_set(USER_ID_KEY, DefaultValue::Int(user_response.data.id));
+    Ok(())
 }
 
 /// Attempts to refresh the authentication token using the stored refresh token.
 fn refresh_token() -> Result<()> {
-	let current = get_token()?;
-	let refresh_token = current
-		.refresh_token
-		.ok_or_else(|| AidokuError::Message("No refresh token".into()))?;
+    let current = get_token()?;
+    let refresh_token = current
+        .refresh_token
+        .ok_or_else(|| AidokuError::Message("No refresh token".into()))?;
 
-	let body = format!(
-		"grant_type={GRANT_TYPE_REFRESH}&client_id={CLIENT_ID}&refresh_token={refresh_token}&redirect_uri={REDIRECT_URI}",
-	);
+    let body = format!(
+        "grant_type={GRANT_TYPE_REFRESH}&client_id={CLIENT_ID}&refresh_token={refresh_token}&redirect_uri={REDIRECT_URI}",
+    );
 
-	let response = Request::post(format!("{}{REFRESH_PATH}", get_api_url()))?
-		.header(HEADER_CONTENT_TYPE, CONTENT_TYPE_FORM)
-		.body(body)
-		.send()?;
+    let response = Request::post(format!("{}{REFRESH_PATH}", get_api_url()))?
+        .header(HEADER_CONTENT_TYPE, CONTENT_TYPE_FORM)
+        .body(body)
+        .send()?;
 
-	if response.status_code() == 200 {
-		let data = String::from_utf8(response.get_data()?).unwrap_or_default();
-		set_token(data);
-	}
+    if response.status_code() == 200 {
+        let data = String::from_utf8(response.get_data()?).unwrap_or_default();
+        set_token(data);
+    }
 
-	Ok(())
+    Ok(())
 }
 
 #[cfg(test)]

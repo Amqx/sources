@@ -3,15 +3,15 @@ use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct SearchResponse {
-	pub data: BTreeMap<String, SearchBook>,
+    pub data: BTreeMap<String, SearchBook>,
 }
 
 #[derive(Deserialize)]
 pub struct SearchBook {
-	pub value: String,
+    pub value: String,
 }
 
 #[derive(Deserialize)]
 pub struct ChapterPagesResponse {
-	pub src: String,
+    pub src: String,
 }

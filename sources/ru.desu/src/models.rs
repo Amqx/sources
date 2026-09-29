@@ -7,171 +7,171 @@ use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct DesuError {
-	pub message: Option<String>,
-	pub code: Option<String>,
+    pub message: Option<String>,
+    pub code: Option<String>,
 }
 
 #[derive(Deserialize)]
 pub struct DesuMangaResponse {
-	pub manga: Option<DesuItem>,
-	pub errors: Option<Vec<DesuError>>,
+    pub manga: Option<DesuItem>,
+    pub errors: Option<Vec<DesuError>>,
 }
 
 #[derive(Deserialize)]
 pub struct DesuChaptersResponse {
-	pub chapters: Option<Vec<DesuChapter>>,
-	pub errors: Option<Vec<DesuError>>,
+    pub chapters: Option<Vec<DesuChapter>>,
+    pub errors: Option<Vec<DesuError>>,
 }
 
 #[derive(Deserialize)]
 pub struct DesuChapterResponse {
-	pub chapter: Option<DesuChapterDetails>,
-	pub errors: Option<Vec<DesuError>>,
+    pub chapter: Option<DesuChapterDetails>,
+    pub errors: Option<Vec<DesuError>>,
 }
 
 #[derive(Deserialize)]
 pub struct DesuCover {
-	pub preview: Option<String>,
-	pub snippet: Option<String>,
-	pub x120: Option<String>,
+    pub preview: Option<String>,
+    pub snippet: Option<String>,
+    pub x120: Option<String>,
 }
 
 #[derive(Deserialize)]
 pub struct DesuGenre {
-	pub name: String,
+    pub name: String,
 }
 
 #[derive(Deserialize)]
 pub struct DesuAuthor {
-	pub name: String,
+    pub name: String,
 }
 
 #[derive(Deserialize, Clone)]
 pub struct DesuChapter {
-	pub id: i64,
-	pub manga_id: Option<i64>,
-	pub volume: Option<String>,
-	pub number: Option<String>,
-	pub title: Option<String>,
-	pub publish_date: Option<i64>,
-	pub view_url: Option<String>,
-	pub is_readable: Option<bool>,
+    pub id: i64,
+    pub manga_id: Option<i64>,
+    pub volume: Option<String>,
+    pub number: Option<String>,
+    pub title: Option<String>,
+    pub publish_date: Option<i64>,
+    pub view_url: Option<String>,
+    pub is_readable: Option<bool>,
 }
 
 #[derive(Deserialize)]
 pub struct DesuPage {
-	pub url: Option<String>,
+    pub url: Option<String>,
 }
 
 #[derive(Deserialize)]
 pub struct DesuChapterDetails {
-	pub pages: Option<Vec<DesuPage>>,
+    pub pages: Option<Vec<DesuPage>>,
 }
 
 #[derive(Deserialize)]
 pub struct DesuItem {
-	pub id: i64,
-	pub name: String,
-	pub russian: Option<String>,
-	pub cover: Option<DesuCover>,
-	pub kind: Option<String>,
-	pub reading_direction: Option<String>,
-	#[serde(rename = "reading_mode")]
-	pub recommended_reading_mode: Option<String>,
-	pub content_rating: Option<String>,
-	pub status: Option<String>,
-	pub description: Option<String>,
-	pub view_url: Option<String>,
-	pub genres: Option<Vec<DesuGenre>>,
-	pub authors: Option<Vec<DesuAuthor>>,
+    pub id: i64,
+    pub name: String,
+    pub russian: Option<String>,
+    pub cover: Option<DesuCover>,
+    pub kind: Option<String>,
+    pub reading_direction: Option<String>,
+    #[serde(rename = "reading_mode")]
+    pub recommended_reading_mode: Option<String>,
+    pub content_rating: Option<String>,
+    pub status: Option<String>,
+    pub description: Option<String>,
+    pub view_url: Option<String>,
+    pub genres: Option<Vec<DesuGenre>>,
+    pub authors: Option<Vec<DesuAuthor>>,
 }
 
 fn parse_f32(value: Option<&String>) -> Option<f32> {
-	value.and_then(|v| v.parse().ok())
+    value.and_then(|v| v.parse().ok())
 }
 
 impl From<DesuChapter> for Chapter {
-	fn from(value: DesuChapter) -> Self {
-		Self {
-			key: value.id.to_string(),
-			volume_number: parse_f32(value.volume.as_ref()),
-			chapter_number: parse_f32(value.number.as_ref()),
-			title: value.title,
-			date_uploaded: value.publish_date,
-			url: value.view_url.map(|url| rewrite_media_url(&url)),
-			..Default::default()
-		}
-	}
+    fn from(value: DesuChapter) -> Self {
+        Self {
+            key: value.id.to_string(),
+            volume_number: parse_f32(value.volume.as_ref()),
+            chapter_number: parse_f32(value.number.as_ref()),
+            title: value.title,
+            date_uploaded: value.publish_date,
+            url: value.view_url.map(|url| rewrite_media_url(&url)),
+            ..Default::default()
+        }
+    }
 }
 
 impl DesuItem {
-	pub fn into_manga(self, manga: Option<Manga>, slim: bool, details: bool) -> Manga {
-		let mut item = manga.unwrap_or(Manga {
-			key: manga_key(&self.id.to_string()),
-			..Default::default()
-		});
-		if !item.key.starts_with("m:") && !item.key.starts_with("r:") {
-			item.key = manga_key(&item.key);
-		}
+    pub fn into_manga(self, manga: Option<Manga>, slim: bool, details: bool) -> Manga {
+        let mut item = manga.unwrap_or(Manga {
+            key: manga_key(&self.id.to_string()),
+            ..Default::default()
+        });
+        if !item.key.starts_with("m:") && !item.key.starts_with("r:") {
+            item.key = manga_key(&item.key);
+        }
 
-		item.title = if eng_title() {
-			self.name
-		} else {
-			self.russian.unwrap_or(self.name)
-		};
+        item.title = if eng_title() {
+            self.name
+        } else {
+            self.russian.unwrap_or(self.name)
+        };
 
-		item.cover = self
-			.cover
-			.and_then(|v| v.preview.or(v.snippet).or(v.x120))
-			.map(|url| rewrite_media_url(&url));
+        item.cover = self
+            .cover
+            .and_then(|v| v.preview.or(v.snippet).or(v.x120))
+            .map(|url| rewrite_media_url(&url));
 
-		if slim {
-			return item;
-		}
+        if slim {
+            return item;
+        }
 
-		if details {
-			item.content_rating = self
-				.content_rating
-				.as_deref()
-				.map(|value| match value {
-					"18_plus" | "adult" | "nsfw" => ContentRating::NSFW,
-					"16_plus" | "suggestive" => ContentRating::Suggestive,
-					_ => ContentRating::Safe,
-				})
-				.unwrap_or_default();
+        if details {
+            item.content_rating = self
+                .content_rating
+                .as_deref()
+                .map(|value| match value {
+                    "18_plus" | "adult" | "nsfw" => ContentRating::NSFW,
+                    "16_plus" | "suggestive" => ContentRating::Suggestive,
+                    _ => ContentRating::Safe,
+                })
+                .unwrap_or_default();
 
-			item.status = self
-				.status
-				.as_deref()
-				.map(|v| match v {
-					"ongoing" => MangaStatus::Ongoing,
-					"released" | "completed" => MangaStatus::Completed,
-					_ => MangaStatus::Unknown,
-				})
-				.unwrap_or_default();
+            item.status = self
+                .status
+                .as_deref()
+                .map(|v| match v {
+                    "ongoing" => MangaStatus::Ongoing,
+                    "released" | "completed" => MangaStatus::Completed,
+                    _ => MangaStatus::Unknown,
+                })
+                .unwrap_or_default();
 
-			let kind = self.kind.as_deref().unwrap_or("");
-			item.viewer = match kind {
-				"manhwa" | "manhua" => Viewer::Webtoon,
-				_ => match self.recommended_reading_mode.as_deref() {
-					Some("vertical") => Viewer::Webtoon,
-					_ => match self.reading_direction.as_deref() {
-						Some("left-to-right") => Viewer::LeftToRight,
-						Some("top-to-bottom") => Viewer::Webtoon,
-						_ => Viewer::RightToLeft,
-					},
-				},
-			};
+            let kind = self.kind.as_deref().unwrap_or("");
+            item.viewer = match kind {
+                "manhwa" | "manhua" => Viewer::Webtoon,
+                _ => match self.recommended_reading_mode.as_deref() {
+                    Some("vertical") => Viewer::Webtoon,
+                    _ => match self.reading_direction.as_deref() {
+                        Some("left-to-right") => Viewer::LeftToRight,
+                        Some("top-to-bottom") => Viewer::Webtoon,
+                        _ => Viewer::RightToLeft,
+                    },
+                },
+            };
 
-			item.authors = self
-				.authors
-				.map(|l| l.into_iter().map(|v| v.name).collect());
+            item.authors = self
+                .authors
+                .map(|l| l.into_iter().map(|v| v.name).collect());
 
-			item.description = self.description;
-			item.url = self.view_url.map(|url| rewrite_media_url(&url));
-			item.tags = self.genres.map(|l| l.into_iter().map(|v| v.name).collect());
-		}
+            item.description = self.description;
+            item.url = self.view_url.map(|url| rewrite_media_url(&url));
+            item.tags = self.genres.map(|l| l.into_iter().map(|v| v.name).collect());
+        }
 
-		item
-	}
+        item
+    }
 }

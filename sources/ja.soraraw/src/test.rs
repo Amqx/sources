@@ -16,742 +16,742 @@ const NULL_GENRE_KEY: &str = "majime-fumajime-maji-koiji-64273";
 const SHORT_CHAPTER_KEY: &str = "fusago-han-61986";
 
 fn listing(id: &str) -> Listing {
-	Listing {
-		id: String::from(id),
-		..Default::default()
-	}
+    Listing {
+        id: String::from(id),
+        ..Default::default()
+    }
 }
 
 fn resolves(url: &str) -> bool {
-	Request::head(url)
-		.and_then(|request| request.send())
-		.map(|response| response.status_code() == 200)
-		.unwrap_or(false)
+    Request::head(url)
+        .and_then(|request| request.send())
+        .map(|response| response.status_code() == 200)
+        .unwrap_or(false)
 }
 
 fn titles(entries: &[Manga]) -> Vec<&String> {
-	entries.iter().map(|manga| &manga.title).collect()
+    entries.iter().map(|manga| &manga.title).collect()
 }
 
 fn page_urls(pages: &[Page]) -> Vec<&String> {
-	pages
-		.iter()
-		.map(|page| {
-			let PageContent::Url(url, _) = &page.content else {
-				panic!("expected a page url");
-			};
-			url
-		})
-		.collect()
+    pages
+        .iter()
+        .map(|page| {
+            let PageContent::Url(url, _) = &page.content else {
+                panic!("expected a page url");
+            };
+            url
+        })
+        .collect()
 }
 
 fn page_slices(pages: &[Page]) -> Vec<(&String, &String, &String)> {
-	pages
-		.iter()
-		.map(|page| {
-			let PageContent::Url(url, Some(context)) = &page.content else {
-				panic!("expected a page url carrying a slice");
-			};
-			let (Some(slice), Some(slices)) = (context.get("slice"), context.get("slices")) else {
-				panic!("expected a slice and a slice count");
-			};
-			(url, slice, slices)
-		})
-		.collect()
+    pages
+        .iter()
+        .map(|page| {
+            let PageContent::Url(url, Some(context)) = &page.content else {
+                panic!("expected a page url carrying a slice");
+            };
+            let (Some(slice), Some(slices)) = (context.get("slice"), context.get("slices")) else {
+                panic!("expected a slice and a slice count");
+            };
+            (url, slice, slices)
+        })
+        .collect()
 }
 
 #[aidoku_test]
 fn test_listings() {
-	for id in ["newest", "rising", "trending", "lifetime"] {
-		let result = Soraraw.get_manga_list(listing(id), 1).expect("listing");
-		assert!(!result.entries.is_empty(), "{id} returned no entries");
+    for id in ["newest", "rising", "trending", "lifetime"] {
+        let result = Soraraw.get_manga_list(listing(id), 1).expect("listing");
+        assert!(!result.entries.is_empty(), "{id} returned no entries");
 
-		let entry = &result.entries[0];
-		assert!(!entry.key.is_empty());
-		assert!(!entry.title.is_empty());
-		assert!(
-			entry
-				.cover
-				.as_ref()
-				.is_some_and(|cover| cover.starts_with("http")),
-			"{id} entry has no absolute cover"
-		);
-		// listings carry the adult flag, so this one doesn't have to wait for the details
-		// request; `viewer` does, since it is picked from genres the listings don't carry
-		assert_ne!(
-			entry.content_rating,
-			ContentRating::Unknown,
-			"{id} entry has no content rating"
-		);
-	}
+        let entry = &result.entries[0];
+        assert!(!entry.key.is_empty());
+        assert!(!entry.title.is_empty());
+        assert!(
+            entry
+                .cover
+                .as_ref()
+                .is_some_and(|cover| cover.starts_with("http")),
+            "{id} entry has no absolute cover"
+        );
+        // listings carry the adult flag, so this one doesn't have to wait for the details
+        // request; `viewer` does, since it is picked from genres the listings don't carry
+        assert_ne!(
+            entry.content_rating,
+            ContentRating::Unknown,
+            "{id} entry has no content rating"
+        );
+    }
 }
 
 // only the paginated listing walks pages; the rankings hand out a single batch
 #[aidoku_test]
 fn test_listing_pagination() {
-	let first = Soraraw
-		.get_manga_list(listing("newest"), 1)
-		.expect("page 1");
-	assert!(first.has_next_page);
+    let first = Soraraw
+        .get_manga_list(listing("newest"), 1)
+        .expect("page 1");
+    assert!(first.has_next_page);
 
-	let second = Soraraw
-		.get_manga_list(listing("newest"), 2)
-		.expect("page 2");
-	assert!(!second.entries.is_empty());
-	assert_ne!(first.entries[0].key, second.entries[0].key);
+    let second = Soraraw
+        .get_manga_list(listing("newest"), 2)
+        .expect("page 2");
+    assert!(!second.entries.is_empty());
+    assert_ne!(first.entries[0].key, second.entries[0].key);
 
-	// the rankings were read off the home page before, which embeds ten of them at most
-	for id in ["rising", "trending", "lifetime"] {
-		let result = Soraraw.get_manga_list(listing(id), 1).expect(id);
-		assert!(!result.has_next_page);
-		assert!(
-			result.entries.len() > 100,
-			"{id} returned {} entries",
-			result.entries.len()
-		);
-	}
+    // the rankings were read off the home page before, which embeds ten of them at most
+    for id in ["rising", "trending", "lifetime"] {
+        let result = Soraraw.get_manga_list(listing(id), 1).expect(id);
+        assert!(!result.has_next_page);
+        assert!(
+            result.entries.len() > 100,
+            "{id} returned {} entries",
+            result.entries.len()
+        );
+    }
 }
 
 // the series below is looked up by its japanese title and by its romanised alternative one,
 // which has to match regardless of case
 #[aidoku_test]
 fn test_search() {
-	for query in ["小林さんちのメイドラゴン", "miss kobayashi"] {
-		let result = Soraraw
-			.get_search_manga_list(Some(String::from(query)), 1, Vec::new())
-			.expect("search");
-		let entry = result
-			.entries
-			.iter()
-			.find(|manga| manga.key == SEARCHED_KEY)
-			.unwrap_or_else(|| panic!("{query} matched {:?}", titles(&result.entries)));
+    for query in ["小林さんちのメイドラゴン", "miss kobayashi"] {
+        let result = Soraraw
+            .get_search_manga_list(Some(String::from(query)), 1, Vec::new())
+            .expect("search");
+        let entry = result
+            .entries
+            .iter()
+            .find(|manga| manga.key == SEARCHED_KEY)
+            .unwrap_or_else(|| panic!("{query} matched {:?}", titles(&result.entries)));
 
-		assert_eq!(entry.title, "小林さんちのメイドラゴン");
-		assert_eq!(entry.content_rating, ContentRating::NSFW);
-		// catalogue entries name their cover field differently, so it is easy to lose
-		assert!(
-			entry
-				.cover
-				.as_ref()
-				.is_some_and(|cover| cover.starts_with("http")),
-			"{query} matched an entry without an absolute cover"
-		);
-		// every match is returned at once, so there is no page to follow
-		assert!(!result.has_next_page);
-	}
+        assert_eq!(entry.title, "小林さんちのメイドラゴン");
+        assert_eq!(entry.content_rating, ContentRating::NSFW);
+        // catalogue entries name their cover field differently, so it is easy to lose
+        assert!(
+            entry
+                .cover
+                .as_ref()
+                .is_some_and(|cover| cover.starts_with("http")),
+            "{query} matched an entry without an absolute cover"
+        );
+        // every match is returned at once, so there is no page to follow
+        assert!(!result.has_next_page);
+    }
 }
 
 // "supportsAuthorSearch" puts an author field in the search filters rather than folding the name
 // into the query, so the walk has to narrow to the author of an entry when that field arrives
 #[aidoku_test]
 fn test_search_by_author() {
-	let filters = vec![FilterValue::Text {
-		id: String::from("author"),
-		value: String::from("伊藤京介"),
-	}];
-	let result = Soraraw
-		.get_search_manga_list(None, 1, filters)
-		.expect("author search");
+    let filters = vec![FilterValue::Text {
+        id: String::from("author"),
+        value: String::from("伊藤京介"),
+    }];
+    let result = Soraraw
+        .get_search_manga_list(None, 1, filters)
+        .expect("author search");
 
-	assert!(
-		result
-			.entries
-			.iter()
-			.any(|manga| manga.key == JPG_MANGA_KEY),
-		"{:?}",
-		titles(&result.entries)
-	);
-	assert!(!result.has_next_page);
+    assert!(
+        result
+            .entries
+            .iter()
+            .any(|manga| manga.key == JPG_MANGA_KEY),
+        "{:?}",
+        titles(&result.entries)
+    );
+    assert!(!result.has_next_page);
 }
 
 // the walk above can't tell the narrowing apart from a plain query, which matches the author too,
 // so it is pinned here: a title that only the query should match has to be rejected
 #[aidoku_test]
 fn test_matches_author() {
-	let entry = serde_json::from_str::<CatalogueEntry>(
-		r#"{"name":"となりの黒川さん","slug":"x","author":"伊藤京介"}"#,
-	)
-	.expect("catalogue entry");
-	assert!(entry.matches_author("伊藤京介"));
-	assert!(!entry.matches_author("となりの黒川さん"));
-	// the plain query keeps running over the title as well as the author
-	assert!(entry.matches("となりの黒川さん"));
-	assert!(entry.matches("伊藤京介"));
+    let entry = serde_json::from_str::<CatalogueEntry>(
+        r#"{"name":"となりの黒川さん","slug":"x","author":"伊藤京介"}"#,
+    )
+    .expect("catalogue entry");
+    assert!(entry.matches_author("伊藤京介"));
+    assert!(!entry.matches_author("となりの黒川さん"));
+    // the plain query keeps running over the title as well as the author
+    assert!(entry.matches("となりの黒川さん"));
+    assert!(entry.matches("伊藤京介"));
 
-	// about half the catalogue carries no author at all, which matches nothing rather than everything
-	let anonymous =
-		serde_json::from_str::<CatalogueEntry>(r#"{"name":"x","slug":"y"}"#).expect("entry");
-	assert!(!anonymous.matches_author("伊藤京介"));
+    // about half the catalogue carries no author at all, which matches nothing rather than everything
+    let anonymous =
+        serde_json::from_str::<CatalogueEntry>(r#"{"name":"x","slug":"y"}"#).expect("entry");
+    assert!(!anonymous.matches_author("伊藤京介"));
 }
 
 #[aidoku_test]
 fn test_genre_filter() {
-	let filters = vec![FilterValue::Select {
-		id: String::from("genre"),
-		value: String::from("akushon"),
-	}];
-	let result = Soraraw
-		.get_search_manga_list(None, 1, filters)
-		.expect("filtered list");
-	assert!(!result.entries.is_empty());
-	assert!(result.has_next_page);
+    let filters = vec![FilterValue::Select {
+        id: String::from("genre"),
+        value: String::from("akushon"),
+    }];
+    let result = Soraraw
+        .get_search_manga_list(None, 1, filters)
+        .expect("filtered list");
+    assert!(!result.entries.is_empty());
+    assert!(result.has_next_page);
 
-	// an empty selection is the "All" option, which has to fall back to the plain listing
-	let cleared = vec![FilterValue::Select {
-		id: String::from("genre"),
-		value: String::new(),
-	}];
-	let result = Soraraw
-		.get_search_manga_list(None, 1, cleared)
-		.expect("cleared filter");
-	assert!(!result.entries.is_empty());
+    // an empty selection is the "All" option, which has to fall back to the plain listing
+    let cleared = vec![FilterValue::Select {
+        id: String::from("genre"),
+        value: String::new(),
+    }];
+    let result = Soraraw
+        .get_search_manga_list(None, 1, cleared)
+        .expect("cleared filter");
+    assert!(!result.entries.is_empty());
 }
 
 #[aidoku_test]
 fn test_dynamic_filters() {
-	let filters = Soraraw.get_dynamic_filters().expect("dynamic filters");
-	assert_eq!(filters.len(), 1);
+    let filters = Soraraw.get_dynamic_filters().expect("dynamic filters");
+    assert_eq!(filters.len(), 1);
 
-	let FilterKind::Select { options, ids, .. } = &filters[0].kind else {
-		panic!("expected a select filter");
-	};
-	// the site listed over 1800 genres at the time of writing, so the cap is what decides the
-	// count; the lower bound only guards against the list coming back empty or broken
-	assert!(options.len() > 1, "got {} options", options.len());
-	assert!(options.len() <= GENRE_LIMIT + 1, "the cap is not applied");
-	let ids = ids.as_ref().expect("genre ids");
-	assert_eq!(ids.len(), options.len());
-	// the first option clears the filter, every other one has to name a genre
-	assert!(ids[0].is_empty());
-	assert!(ids[1..].iter().all(|id| !id.is_empty()));
+    let FilterKind::Select { options, ids, .. } = &filters[0].kind else {
+        panic!("expected a select filter");
+    };
+    // the site listed over 1800 genres at the time of writing, so the cap is what decides the
+    // count; the lower bound only guards against the list coming back empty or broken
+    assert!(options.len() > 1, "got {} options", options.len());
+    assert!(options.len() <= GENRE_LIMIT + 1, "the cap is not applied");
+    let ids = ids.as_ref().expect("genre ids");
+    assert_eq!(ids.len(), options.len());
+    // the first option clears the filter, every other one has to name a genre
+    assert!(ids[0].is_empty());
+    assert!(ids[1..].iter().all(|id| !id.is_empty()));
 }
 
 #[aidoku_test]
 fn test_manga_details() {
-	let manga = Manga {
-		key: String::from(MANGA_KEY),
-		..Default::default()
-	};
-	let manga = Soraraw
-		.get_manga_update(manga, true, true)
-		.expect("manga details");
+    let manga = Manga {
+        key: String::from(MANGA_KEY),
+        ..Default::default()
+    };
+    let manga = Soraraw
+        .get_manga_update(manga, true, true)
+        .expect("manga details");
 
-	assert_eq!(manga.title, "魔女と傭兵");
-	assert_eq!(
-		manga.url.as_deref(),
-		Some("https://soraraw.com/manga/majo-to-youhei-57539")
-	);
-	assert!(manga.cover.is_some_and(|cover| cover.starts_with("http")));
-	// the author field holds several names separated by commas
-	assert!(manga.authors.is_some_and(|authors| authors.len() > 1));
-	assert!(manga.tags.is_some_and(|tags| !tags.is_empty()));
-	assert_eq!(manga.status, MangaStatus::Ongoing);
-	assert_eq!(manga.viewer, Viewer::RightToLeft);
-	assert_eq!(manga.content_rating, ContentRating::Safe);
-	// the synopsis is stored as an editor document, which has to come out as plain text
-	let description = manga.description.expect("description");
-	assert!(!description.contains('<'), "{description}");
-	assert!(!description.contains("blocks"), "{description}");
+    assert_eq!(manga.title, "魔女と傭兵");
+    assert_eq!(
+        manga.url.as_deref(),
+        Some("https://soraraw.com/manga/majo-to-youhei-57539")
+    );
+    assert!(manga.cover.is_some_and(|cover| cover.starts_with("http")));
+    // the author field holds several names separated by commas
+    assert!(manga.authors.is_some_and(|authors| authors.len() > 1));
+    assert!(manga.tags.is_some_and(|tags| !tags.is_empty()));
+    assert_eq!(manga.status, MangaStatus::Ongoing);
+    assert_eq!(manga.viewer, Viewer::RightToLeft);
+    assert_eq!(manga.content_rating, ContentRating::Safe);
+    // the synopsis is stored as an editor document, which has to come out as plain text
+    let description = manga.description.expect("description");
+    assert!(!description.contains('<'), "{description}");
+    assert!(!description.contains("blocks"), "{description}");
 
-	let chapters = manga.chapters.expect("chapters");
-	assert!(chapters.len() > 100, "got {} chapters", chapters.len());
-	let chapter = &chapters[0];
-	assert!(chapter.key.contains('/'));
-	assert!(chapter.chapter_number.is_some());
-	assert!(chapter.url.as_deref().is_some_and(|url| {
-		url.starts_with("https://soraraw.com/manga/majo-to-youhei-57539/ch-")
-	}));
-	// language stays unset so the app's chapter language filter can't hide these
-	assert_eq!(chapter.language, None);
-	// decimal chapters exist and have to keep their number
-	assert!(
-		chapters
-			.iter()
-			.any(|chapter| chapter.chapter_number.is_some_and(|it| it.fract() != 0.0))
-	);
-	// date_uploaded isn't checked here: the test runner doesn't implement the quoting,
-	// fractional seconds or ISO 8601 zones that DATE_FORMAT relies on, so it only ever
-	// parses on device
+    let chapters = manga.chapters.expect("chapters");
+    assert!(chapters.len() > 100, "got {} chapters", chapters.len());
+    let chapter = &chapters[0];
+    assert!(chapter.key.contains('/'));
+    assert!(chapter.chapter_number.is_some());
+    assert!(chapter.url.as_deref().is_some_and(|url| {
+        url.starts_with("https://soraraw.com/manga/majo-to-youhei-57539/ch-")
+    }));
+    // language stays unset so the app's chapter language filter can't hide these
+    assert_eq!(chapter.language, None);
+    // decimal chapters exist and have to keep their number
+    assert!(
+        chapters
+            .iter()
+            .any(|chapter| chapter.chapter_number.is_some_and(|it| it.fract() != 0.0))
+    );
+    // date_uploaded isn't checked here: the test runner doesn't implement the quoting,
+    // fractional seconds or ISO 8601 zones that DATE_FORMAT relies on, so it only ever
+    // parses on device
 }
 
 // two of its genre rows come back with every field but the id null, which used to fail the whole
 // details request
 #[aidoku_test]
 fn test_null_genres() {
-	let manga = Manga {
-		key: String::from(NULL_GENRE_KEY),
-		..Default::default()
-	};
-	let manga = Soraraw
-		.get_manga_update(manga, true, true)
-		.expect("manga details");
+    let manga = Manga {
+        key: String::from(NULL_GENRE_KEY),
+        ..Default::default()
+    };
+    let manga = Soraraw
+        .get_manga_update(manga, true, true)
+        .expect("manga details");
 
-	assert!(manga.tags.is_some_and(|tags| !tags.is_empty()));
+    assert!(manga.tags.is_some_and(|tags| !tags.is_empty()));
 }
 
 // reading `mode` as the reader handed ordinary manga marked `vertical` to the continuous scroll
 #[aidoku_test]
 fn test_viewer_and_content_rating() {
-	for (key, viewer, rating) in [
-		// tagged with the overseas genre, so its panels are meant to run together
-		(WEBTOON_KEY, Viewer::Webtoon, None),
-		(PAGED_VERTICAL_KEY, Viewer::RightToLeft, None),
-		// the adult flag has to reach the app regardless of which reader is picked. the two above
-		// are left unasserted because what the site flags them as was never measured
-		(
-			ADULT_VERTICAL_KEY,
-			Viewer::RightToLeft,
-			Some(ContentRating::NSFW),
-		),
-	] {
-		let manga = Manga {
-			key: String::from(key),
-			..Default::default()
-		};
-		let manga = Soraraw
-			.get_manga_update(manga, true, false)
-			.expect("details of a vertical entry");
+    for (key, viewer, rating) in [
+        // tagged with the overseas genre, so its panels are meant to run together
+        (WEBTOON_KEY, Viewer::Webtoon, None),
+        (PAGED_VERTICAL_KEY, Viewer::RightToLeft, None),
+        // the adult flag has to reach the app regardless of which reader is picked. the two above
+        // are left unasserted because what the site flags them as was never measured
+        (
+            ADULT_VERTICAL_KEY,
+            Viewer::RightToLeft,
+            Some(ContentRating::NSFW),
+        ),
+    ] {
+        let manga = Manga {
+            key: String::from(key),
+            ..Default::default()
+        };
+        let manga = Soraraw
+            .get_manga_update(manga, true, false)
+            .expect("details of a vertical entry");
 
-		assert_eq!(manga.viewer, viewer, "{key}");
-		if let Some(rating) = rating {
-			assert_eq!(manga.content_rating, rating, "{key}");
-		}
-	}
+        assert_eq!(manga.viewer, viewer, "{key}");
+        if let Some(rating) = rating {
+            assert_eq!(manga.content_rating, rating, "{key}");
+        }
+    }
 }
 
 #[aidoku_test]
 fn test_page_list() {
-	let manga = Manga {
-		key: String::from(MANGA_KEY),
-		..Default::default()
-	};
-	let mut manga = Soraraw
-		.get_manga_update(manga, false, true)
-		.expect("chapters");
-	// taken rather than cloned; the page request doesn't read the chapter list back
-	let chapter = manga
-		.chapters
-		.take()
-		.expect("chapters")
-		.into_iter()
-		.find(|chapter| chapter.chapter_number == Some(1.0))
-		.expect("chapter 1");
+    let manga = Manga {
+        key: String::from(MANGA_KEY),
+        ..Default::default()
+    };
+    let mut manga = Soraraw
+        .get_manga_update(manga, false, true)
+        .expect("chapters");
+    // taken rather than cloned; the page request doesn't read the chapter list back
+    let chapter = manga
+        .chapters
+        .take()
+        .expect("chapters")
+        .into_iter()
+        .find(|chapter| chapter.chapter_number == Some(1.0))
+        .expect("chapter 1");
 
-	let pages = Soraraw.get_page_list(manga, chapter).expect("page list");
-	// chapter 1 of this series holds 72 pages, and can only ever gain them
-	assert!(pages.len() >= 72, "got {} pages", pages.len());
+    let pages = Soraraw.get_page_list(manga, chapter).expect("page list");
+    // chapter 1 of this series holds 72 pages, and can only ever gain them
+    assert!(pages.len() >= 72, "got {} pages", pages.len());
 
-	let urls = page_urls(&pages);
-	for url in &urls {
-		assert!(url.starts_with("https://lh"), "{url} is not absolute");
-		assert!(url.ends_with(".webp"), "{url} is not a webp");
-	}
-	// page numbers are built rather than handed out, so they have to stay in order and unique
-	assert!(
-		urls[0].contains("/001_"),
-		"{} is not the first page",
-		urls[0]
-	);
-	assert!(
-		urls[1].contains("/002_"),
-		"{} is not the second page",
-		urls[1]
-	);
+    let urls = page_urls(&pages);
+    for url in &urls {
+        assert!(url.starts_with("https://lh"), "{url} is not absolute");
+        assert!(url.ends_with(".webp"), "{url} is not a webp");
+    }
+    // page numbers are built rather than handed out, so they have to stay in order and unique
+    assert!(
+        urls[0].contains("/001_"),
+        "{} is not the first page",
+        urls[0]
+    );
+    assert!(
+        urls[1].contains("/002_"),
+        "{} is not the second page",
+        urls[1]
+    );
 
-	// the urls are assembled from ids, so one has to be requested to prove the shape resolves
-	assert!(resolves(urls[0]), "{} did not resolve", urls[0]);
-	assert!(
-		resolves(urls[urls.len() - 1]),
-		"{} did not resolve",
-		urls[urls.len() - 1]
-	);
+    // the urls are assembled from ids, so one has to be requested to prove the shape resolves
+    assert!(resolves(urls[0]), "{} did not resolve", urls[0]);
+    assert!(
+        resolves(urls[urls.len() - 1]),
+        "{} did not resolve",
+        urls[urls.len() - 1]
+    );
 }
 
 // chapters 66 to 70 are each served as one image stacking all 24 pages, 1450x49152. splitting it
 // also proves the decrypted path resolved and its header read back
 #[aidoku_test]
 fn test_stacked_chapter_is_split() {
-	let manga = Manga {
-		key: String::from(PAGED_VERTICAL_KEY),
-		..Default::default()
-	};
-	let mut manga = Soraraw
-		.get_manga_update(manga, false, true)
-		.expect("chapters");
-	let chapter = manga
-		.chapters
-		.take()
-		.expect("chapters")
-		.into_iter()
-		.find(|chapter| chapter.chapter_number == Some(70.0))
-		.expect("chapter 70");
+    let manga = Manga {
+        key: String::from(PAGED_VERTICAL_KEY),
+        ..Default::default()
+    };
+    let mut manga = Soraraw
+        .get_manga_update(manga, false, true)
+        .expect("chapters");
+    let chapter = manga
+        .chapters
+        .take()
+        .expect("chapters")
+        .into_iter()
+        .find(|chapter| chapter.chapter_number == Some(70.0))
+        .expect("chapter 70");
 
-	let pages = Soraraw.get_page_list(manga, chapter).expect("pages");
-	// 49152 / (1450 × √2) lands on the 24 pages the rest of the series holds one image each
-	let slices = page_slices(&pages);
-	assert_eq!(slices.len(), 24, "got {} pages", slices.len());
-	for (index, (url, slice, count)) in slices.iter().enumerate() {
-		assert!(url.ends_with(".jpg"), "{url} is not a jpg");
-		assert_eq!(url, &slices[0].0, "the slices come off one image");
-		assert_eq!(slice.as_str(), index.to_string(), "{slice} is out of order");
-		assert_eq!(count.as_str(), "24", "{count} slices");
-	}
+    let pages = Soraraw.get_page_list(manga, chapter).expect("pages");
+    // 49152 / (1450 × √2) lands on the 24 pages the rest of the series holds one image each
+    let slices = page_slices(&pages);
+    assert_eq!(slices.len(), 24, "got {} pages", slices.len());
+    for (index, (url, slice, count)) in slices.iter().enumerate() {
+        assert!(url.ends_with(".jpg"), "{url} is not a jpg");
+        assert_eq!(url, &slices[0].0, "the slices come off one image");
+        assert_eq!(slice.as_str(), index.to_string(), "{slice} is out of order");
+        assert_eq!(count.as_str(), "24", "{count} slices");
+    }
 }
 
 // not one series' quirk: this one holds 21 pages in a single 800x24003 jpg. the chapter comes
 // from the chapter list rather than built by hand, since its url carries the key to the paths
 #[aidoku_test]
 fn test_stacked_chapter_of_another_series_is_split() {
-	let manga = Manga {
-		key: String::from(JPG_MANGA_KEY),
-		..Default::default()
-	};
-	let mut manga = Soraraw
-		.get_manga_update(manga, false, true)
-		.expect("chapters");
-	let chapter = manga
-		.chapters
-		.take()
-		.expect("chapters")
-		.into_iter()
-		.find(|chapter| chapter.key == JPG_CHAPTER_KEY)
-		.expect("the jpg chapter");
+    let manga = Manga {
+        key: String::from(JPG_MANGA_KEY),
+        ..Default::default()
+    };
+    let mut manga = Soraraw
+        .get_manga_update(manga, false, true)
+        .expect("chapters");
+    let chapter = manga
+        .chapters
+        .take()
+        .expect("chapters")
+        .into_iter()
+        .find(|chapter| chapter.key == JPG_CHAPTER_KEY)
+        .expect("the jpg chapter");
 
-	let pages = Soraraw.get_page_list(manga, chapter).expect("pages");
-	let slices = page_slices(&pages);
-	assert_eq!(slices.len(), 21, "got {} pages", slices.len());
+    let pages = Soraraw.get_page_list(manga, chapter).expect("pages");
+    let slices = page_slices(&pages);
+    assert_eq!(slices.len(), 21, "got {} pages", slices.len());
 }
 
 // the stacked images are not all jpeg: this chapter is one 1133x16000 webp, which counted as a
 // single page for as long as only the jpeg header was read
 #[aidoku_test]
 fn test_stacked_webp_chapter_is_split() {
-	let manga = Manga {
-		key: String::from(WEBP_MANGA_KEY),
-		..Default::default()
-	};
-	let mut manga = Soraraw
-		.get_manga_update(manga, false, true)
-		.expect("chapters");
-	let chapter = manga
-		.chapters
-		.take()
-		.expect("chapters")
-		.into_iter()
-		.find(|chapter| chapter.chapter_number == Some(120.0))
-		.expect("chapter 120");
+    let manga = Manga {
+        key: String::from(WEBP_MANGA_KEY),
+        ..Default::default()
+    };
+    let mut manga = Soraraw
+        .get_manga_update(manga, false, true)
+        .expect("chapters");
+    let chapter = manga
+        .chapters
+        .take()
+        .expect("chapters")
+        .into_iter()
+        .find(|chapter| chapter.chapter_number == Some(120.0))
+        .expect("chapter 120");
 
-	let pages = Soraraw.get_page_list(manga, chapter).expect("pages");
-	let slices = page_slices(&pages);
-	assert_eq!(slices.len(), 10, "got {} pages", slices.len());
-	for (url, _, _) in &slices {
-		assert!(url.ends_with(".webp"), "{url} is not a webp");
-	}
+    let pages = Soraraw.get_page_list(manga, chapter).expect("pages");
+    let slices = page_slices(&pages);
+    assert_eq!(slices.len(), 10, "got {} pages", slices.len());
+    for (url, _, _) in &slices {
+        assert!(url.ends_with(".webp"), "{url} is not a webp");
+    }
 }
 
 // ordinary chapters reach the measurement too: this one holds four page-shaped scans, and a page
 // standing its width times √2 divides into one page rather than into slices
 #[aidoku_test]
 fn test_short_ordinary_chapter_is_not_split() {
-	let manga = Manga {
-		key: String::from(SHORT_CHAPTER_KEY),
-		..Default::default()
-	};
-	let mut manga = Soraraw
-		.get_manga_update(manga, false, true)
-		.expect("chapters");
-	let chapter = manga
-		.chapters
-		.take()
-		.expect("chapters")
-		.into_iter()
-		.find(|chapter| chapter.chapter_number == Some(206.0))
-		.expect("chapter 206");
+    let manga = Manga {
+        key: String::from(SHORT_CHAPTER_KEY),
+        ..Default::default()
+    };
+    let mut manga = Soraraw
+        .get_manga_update(manga, false, true)
+        .expect("chapters");
+    let chapter = manga
+        .chapters
+        .take()
+        .expect("chapters")
+        .into_iter()
+        .find(|chapter| chapter.chapter_number == Some(206.0))
+        .expect("chapter 206");
 
-	let pages = Soraraw.get_page_list(manga, chapter).expect("pages");
-	// only a chapter this short is measured at all, so the bound is what makes the rest mean anything
-	assert!(
-		pages.len() <= STRIP_IMAGE_LIMIT,
-		"got {} pages",
-		pages.len()
-	);
-	for page in &pages {
-		let PageContent::Url(url, context) = &page.content else {
-			panic!("expected a page url");
-		};
-		assert!(context.is_none(), "{url} came back sliced");
-	}
+    let pages = Soraraw.get_page_list(manga, chapter).expect("pages");
+    // only a chapter this short is measured at all, so the bound is what makes the rest mean anything
+    assert!(
+        pages.len() <= STRIP_IMAGE_LIMIT,
+        "got {} pages",
+        pages.len()
+    );
+    for page in &pages {
+        let PageContent::Url(url, context) = &page.content else {
+            panic!("expected a page url");
+        };
+        assert!(context.is_none(), "{url} came back sliced");
+    }
 }
 
 // a chapter numbered "74.2" has to survive the round trip into a page request
 #[aidoku_test]
 fn test_decimal_chapter_pages() {
-	let manga = Manga {
-		key: String::from(MANGA_KEY),
-		..Default::default()
-	};
-	let mut manga = Soraraw
-		.get_manga_update(manga, false, true)
-		.expect("chapters");
-	let chapter = manga
-		.chapters
-		.take()
-		.expect("chapters")
-		.into_iter()
-		.find(|chapter| {
-			chapter
-				.chapter_number
-				.is_some_and(|number| number.fract() != 0.0)
-		})
-		.expect("a decimal chapter");
+    let manga = Manga {
+        key: String::from(MANGA_KEY),
+        ..Default::default()
+    };
+    let mut manga = Soraraw
+        .get_manga_update(manga, false, true)
+        .expect("chapters");
+    let chapter = manga
+        .chapters
+        .take()
+        .expect("chapters")
+        .into_iter()
+        .find(|chapter| {
+            chapter
+                .chapter_number
+                .is_some_and(|number| number.fract() != 0.0)
+        })
+        .expect("a decimal chapter");
 
-	let pages = Soraraw
-		.get_page_list(manga, chapter)
-		.expect("decimal chapter pages");
-	assert!(!pages.is_empty());
+    let pages = Soraraw
+        .get_page_list(manga, chapter)
+        .expect("decimal chapter pages");
+    assert!(!pages.is_empty());
 }
 
 // the restore itself can't run here: the test runner has no `copy_image`
 #[aidoku_test]
 fn test_scrambled_chapter_pages() {
-	let manga = Manga {
-		key: String::from(MANGA_KEY),
-		..Default::default()
-	};
-	let mut manga = Soraraw
-		.get_manga_update(manga, false, true)
-		.expect("chapters");
-	let chapter = manga
-		.chapters
-		.take()
-		.expect("chapters")
-		.into_iter()
-		.find(|chapter| chapter.key == SCRAMBLED_CHAPTER_KEY)
-		.expect("chapter 77.1");
+    let manga = Manga {
+        key: String::from(MANGA_KEY),
+        ..Default::default()
+    };
+    let mut manga = Soraraw
+        .get_manga_update(manga, false, true)
+        .expect("chapters");
+    let chapter = manga
+        .chapters
+        .take()
+        .expect("chapters")
+        .into_iter()
+        .find(|chapter| chapter.key == SCRAMBLED_CHAPTER_KEY)
+        .expect("chapter 77.1");
 
-	let pages = Soraraw.get_page_list(manga, chapter).expect("pages");
-	assert!(!pages.is_empty());
-	for page in &pages {
-		let PageContent::Url(url, Some(context)) = &page.content else {
-			panic!("expected a page url carrying a seed");
-		};
-		assert_eq!(
-			context.get("seed").map(String::as_str),
-			Some("843507"),
-			"{url}"
-		);
-	}
+    let pages = Soraraw.get_page_list(manga, chapter).expect("pages");
+    assert!(!pages.is_empty());
+    for page in &pages {
+        let PageContent::Url(url, Some(context)) = &page.content else {
+            panic!("expected a page url carrying a seed");
+        };
+        assert_eq!(
+            context.get("seed").map(String::as_str),
+            Some("843507"),
+            "{url}"
+        );
+    }
 }
 
 #[aidoku_test]
 fn test_deep_link() {
-	let manga = Soraraw
-		.handle_deep_link(String::from(
-			"https://soraraw.com/manga/majo-to-youhei-57539",
-		))
-		.expect("manga deep link");
-	assert_eq!(
-		manga,
-		Some(DeepLinkResult::Manga {
-			key: String::from(MANGA_KEY)
-		})
-	);
+    let manga = Soraraw
+        .handle_deep_link(String::from(
+            "https://soraraw.com/manga/majo-to-youhei-57539",
+        ))
+        .expect("manga deep link");
+    assert_eq!(
+        manga,
+        Some(DeepLinkResult::Manga {
+            key: String::from(MANGA_KEY)
+        })
+    );
 
-	// shared links carry tracking parameters the key must not pick up
-	let shared = Soraraw
-		.handle_deep_link(String::from(
-			"https://soraraw.com/manga/majo-to-youhei-57539?utm_source=share",
-		))
-		.expect("shared manga deep link");
-	assert_eq!(
-		shared,
-		Some(DeepLinkResult::Manga {
-			key: String::from(MANGA_KEY)
-		})
-	);
+    // shared links carry tracking parameters the key must not pick up
+    let shared = Soraraw
+        .handle_deep_link(String::from(
+            "https://soraraw.com/manga/majo-to-youhei-57539?utm_source=share",
+        ))
+        .expect("shared manga deep link");
+    assert_eq!(
+        shared,
+        Some(DeepLinkResult::Manga {
+            key: String::from(MANGA_KEY)
+        })
+    );
 
-	let chapter = Soraraw
-		.handle_deep_link(String::from(
-			"https://soraraw.com/manga/majo-to-youhei-57539/ch-1",
-		))
-		.expect("chapter deep link");
-	assert_eq!(
-		chapter,
-		Some(DeepLinkResult::Chapter {
-			manga_key: String::from(MANGA_KEY),
-			key: String::from("57539/508048"),
-		})
-	);
+    let chapter = Soraraw
+        .handle_deep_link(String::from(
+            "https://soraraw.com/manga/majo-to-youhei-57539/ch-1",
+        ))
+        .expect("chapter deep link");
+    assert_eq!(
+        chapter,
+        Some(DeepLinkResult::Chapter {
+            manga_key: String::from(MANGA_KEY),
+            key: String::from("57539/508048"),
+        })
+    );
 
-	let unknown = Soraraw
-		.handle_deep_link(String::from("https://soraraw.com/newest"))
-		.expect("unknown deep link");
-	assert_eq!(unknown, None);
+    let unknown = Soraraw
+        .handle_deep_link(String::from("https://soraraw.com/newest"))
+        .expect("unknown deep link");
+    assert_eq!(unknown, None);
 
-	let foreign = Soraraw
-		.handle_deep_link(String::from(
-			"https://example.com/manga/majo-to-youhei-57539",
-		))
-		.expect("foreign deep link");
-	assert_eq!(foreign, None);
+    let foreign = Soraraw
+        .handle_deep_link(String::from(
+            "https://example.com/manga/majo-to-youhei-57539",
+        ))
+        .expect("foreign deep link");
+    assert_eq!(foreign, None);
 }
 
 // malformed keys can reach the source from a stale library entry, and have to fail loudly
 #[aidoku_test]
 fn test_malformed_chapter_key() {
-	let chapter = Chapter {
-		key: String::from("not-a-key"),
-		..Default::default()
-	};
-	assert!(Soraraw.get_page_list(Manga::default(), chapter).is_err());
+    let chapter = Chapter {
+        key: String::from("not-a-key"),
+        ..Default::default()
+    };
+    assert!(Soraraw.get_page_list(Manga::default(), chapter).is_err());
 
-	let chapter = Chapter {
-		key: String::from("57539/not-a-number"),
-		..Default::default()
-	};
-	assert!(Soraraw.get_page_list(Manga::default(), chapter).is_err());
+    let chapter = Chapter {
+        key: String::from("57539/not-a-number"),
+        ..Default::default()
+    };
+    assert!(Soraraw.get_page_list(Manga::default(), chapter).is_err());
 }
 
 // the payload decoding is pure, so it can be checked without touching the network
 #[aidoku_test]
 fn test_deobfuscate() {
-	// "[{\"id\":1,\"order\":1}]" xored with the key and encoded, padding left off
-	let payload = "dB1XKg97VUQNA05dAhAxSWNeCHw";
-	let json = deobfuscate(payload, PAYLOAD_KEY).expect("decoded payload");
-	assert_eq!(json, r#"[{"id":1,"order":1}]"#);
+    // "[{\"id\":1,\"order\":1}]" xored with the key and encoded, padding left off
+    let payload = "dB1XKg97VUQNA05dAhAxSWNeCHw";
+    let json = deobfuscate(payload, PAYLOAD_KEY).expect("decoded payload");
+    assert_eq!(json, r#"[{"id":1,"order":1}]"#);
 
-	// the endpoint gives the order as a number, but strings appear in the same shape of
-	// payload elsewhere on the site, so both have to survive
-	let images =
-		serde_json::from_str::<Vec<PageImage>>(r#"[{"order":"12","b":"AA"}]"#).expect("text");
-	assert_eq!(images[0].order.as_f32(), Some(12.0));
+    // the endpoint gives the order as a number, but strings appear in the same shape of
+    // payload elsewhere on the site, so both have to survive
+    let images =
+        serde_json::from_str::<Vec<PageImage>>(r#"[{"order":"12","b":"AA"}]"#).expect("text");
+    assert_eq!(images[0].order.as_f32(), Some(12.0));
 
-	assert_eq!(deobfuscate("*", PAYLOAD_KEY), None);
-	assert_eq!(decode_base64("QUJD"), Some(Vec::from(*b"ABC")));
-	assert_eq!(decode_base64("QUJD="), Some(Vec::from(*b"ABC")));
-	assert_eq!(decode_base64("*"), None);
+    assert_eq!(deobfuscate("*", PAYLOAD_KEY), None);
+    assert_eq!(decode_base64("QUJD"), Some(Vec::from(*b"ABC")));
+    assert_eq!(decode_base64("QUJD="), Some(Vec::from(*b"ABC")));
+    assert_eq!(decode_base64("*"), None);
 }
 
 // the path of a page image is what the site encrypts, and building one out of the ids instead
 // held only for part of it: "BLUE GIANT MOMENTUM" is served as jpg, not webp
 #[aidoku_test]
 fn test_decrypt_path() {
-	// chapter 722455, whose uuid the chapter page carries
-	let uuid = "003a8cfd16281b2b1d255d06524d8639ac1f7497533220824247f76eba48aeb9";
-	let path = decrypt_path(
-		"UQajtZjw1-nFt7IgA1ot0f9ahvQL5noTTVZv-2P0EASrNeOXH94Kyw",
-		uuid,
-		PATH_SECRET,
-	);
-	assert_eq!(path.as_deref(), Some("c722455/001_25706548.jpg"));
+    // chapter 722455, whose uuid the chapter page carries
+    let uuid = "003a8cfd16281b2b1d255d06524d8639ac1f7497533220824247f76eba48aeb9";
+    let path = decrypt_path(
+        "UQajtZjw1-nFt7IgA1ot0f9ahvQL5noTTVZv-2P0EASrNeOXH94Kyw",
+        uuid,
+        PATH_SECRET,
+    );
+    assert_eq!(path.as_deref(), Some("c722455/001_25706548.jpg"));
 
-	// a uuid that isn't a 32 byte key, and a value too short to hold a counter and a path
-	assert_eq!(
-		decrypt_path("UQajtZjw1-nFt7IgA1ot0f9a", "00ff", PATH_SECRET),
-		None
-	);
-	assert_eq!(decrypt_path("QUJD", uuid, PATH_SECRET), None);
+    // a uuid that isn't a 32 byte key, and a value too short to hold a counter and a path
+    assert_eq!(
+        decrypt_path("UQajtZjw1-nFt7IgA1ot0f9a", "00ff", PATH_SECRET),
+        None
+    );
+    assert_eq!(decrypt_path("QUJD", uuid, PATH_SECRET), None);
 }
 
 // the header of a jpeg is what counting the pages of a stacked chapter rests on, and a frame
 // header sits behind however many segments the encoder wrote ahead of it
 #[aidoku_test]
 fn test_jpeg_size() {
-	let head = [
-		0xFF, 0xD8, // start of image
-		0xFF, 0xE0, 0x00, 0x04, 0x00, 0x00, // an app segment to skip over
-		0xFF, 0xC0, 0x00, 0x11, 0x08, 0xC0, 0x00, 0x05, 0xAA, // a frame of 1450 x 49152
-	];
-	assert_eq!(jpeg_size(&head), Some((1450, 49152)));
+    let head = [
+        0xFF, 0xD8, // start of image
+        0xFF, 0xE0, 0x00, 0x04, 0x00, 0x00, // an app segment to skip over
+        0xFF, 0xC0, 0x00, 0x11, 0x08, 0xC0, 0x00, 0x05, 0xAA, // a frame of 1450 x 49152
+    ];
+    assert_eq!(jpeg_size(&head), Some((1450, 49152)));
 
-	// anything that isn't a jpeg, and a header cut off ahead of the frame
-	assert_eq!(jpeg_size(b"RIFF\0\0\0\0WEBPVP8 "), None);
-	assert_eq!(jpeg_size(&head[..8]), None);
+    // anything that isn't a jpeg, and a header cut off ahead of the frame
+    assert_eq!(jpeg_size(b"RIFF\0\0\0\0WEBPVP8 "), None);
+    assert_eq!(jpeg_size(&head[..8]), None);
 }
 
 // the shapes measured off the site, and the two ways a header read wrong turns into a count that
 // isn't a page: a width of zero, and one narrow enough to divide the image into slivers
 #[aidoku_test]
 fn test_slice_count() {
-	assert_eq!(slice_count(1450, 49152), 24);
-	assert_eq!(slice_count(800, 24003), 21);
-	assert_eq!(slice_count(1133, 16000), 10);
-	assert_eq!(slice_count(960, 1376), 1);
+    assert_eq!(slice_count(1450, 49152), 24);
+    assert_eq!(slice_count(800, 24003), 21);
+    assert_eq!(slice_count(1133, 16000), 10);
+    assert_eq!(slice_count(960, 1376), 1);
 
-	assert_eq!(slice_count(0, 49152), 1);
-	assert_eq!(slice_count(0, 0), 1);
-	assert_eq!(slice_count(100, 49152), 1);
+    assert_eq!(slice_count(0, 49152), 1);
+    assert_eq!(slice_count(0, 0), 1);
+    assert_eq!(slice_count(100, 49152), 1);
 }
 
 // a webp keeps its frame size behind the start code, in 14 bits of each little endian half word
 #[aidoku_test]
 fn test_webp_size() {
-	let head = [
-		b'R', b'I', b'F', b'F', 0x00, 0x00, 0x00, 0x00, // the riff length, which is not read
-		b'W', b'E', b'B', b'P', b'V', b'P', b'8', b' ', //
-		0x00, 0x00, 0x00, 0x00, // the chunk length, likewise
-		0x00, 0x00, 0x00, // frame tag
-		0x9D, 0x01, 0x2A, // start code
-		0x6D, 0x04, 0x80, 0x3E, // a frame of 1133 x 16000
-	];
-	assert_eq!(webp_size(&head), Some((1133, 16000)));
+    let head = [
+        b'R', b'I', b'F', b'F', 0x00, 0x00, 0x00, 0x00, // the riff length, which is not read
+        b'W', b'E', b'B', b'P', b'V', b'P', b'8', b' ', //
+        0x00, 0x00, 0x00, 0x00, // the chunk length, likewise
+        0x00, 0x00, 0x00, // frame tag
+        0x9D, 0x01, 0x2A, // start code
+        0x6D, 0x04, 0x80, 0x3E, // a frame of 1133 x 16000
+    ];
+    assert_eq!(webp_size(&head), Some((1133, 16000)));
 
-	// a lossless webp, whose size is packed differently, and a header cut off ahead of the frame
-	let mut lossless = head;
-	lossless[15] = b'L';
-	assert_eq!(webp_size(&lossless), None);
-	assert_eq!(webp_size(&head[..24]), None);
-	assert_eq!(webp_size(&[0xFF, 0xD8, 0xFF, 0xDB]), None);
+    // a lossless webp, whose size is packed differently, and a header cut off ahead of the frame
+    let mut lossless = head;
+    lossless[15] = b'L';
+    assert_eq!(webp_size(&lossless), None);
+    assert_eq!(webp_size(&head[..24]), None);
+    assert_eq!(webp_size(&[0xFF, 0xD8, 0xFF, 0xDB]), None);
 }
 
 // expected plans come from a port of the site's wasm that matched it byte for byte
 #[aidoku_test]
 fn test_scramble_plan() {
-	let plan = |width, height, seed| {
-		let tiles = scramble_plan(width, height, seed).expect("plan");
-		let sources = tiles.iter().map(|tile| tile.source).collect::<Vec<usize>>();
-		let turns = tiles.iter().map(|tile| tile.turns).collect::<Vec<u8>>();
-		(sources, turns)
-	};
+    let plan = |width, height, seed| {
+        let tiles = scramble_plan(width, height, seed).expect("plan");
+        let sources = tiles.iter().map(|tile| tile.source).collect::<Vec<usize>>();
+        let turns = tiles.iter().map(|tile| tile.turns).collect::<Vec<u8>>();
+        (sources, turns)
+    };
 
-	let (sources, turns) = plan(1125, 1600, "843507");
-	assert_eq!(
-		sources,
-		[
-			12, 43, 32, 35, 49, 45, 22, 37, 16, 4, 56, 59, 25, 63, 23, 6, 2, 33, 60, 19, 44, 54,
-			61, 39, 11, 36, 9, 24, 42, 62, 13, 29, 28, 34, 3, 0, 58, 30, 7, 15, 51, 41, 1, 57, 10,
-			47, 21, 55, 40, 52, 20, 27, 50, 53, 46, 14, 8, 26, 18, 48, 17, 31, 38, 5
-		]
-	);
-	assert_eq!(
-		turns,
-		[
-			0, 2, 0, 2, 2, 2, 2, 2, 0, 0, 2, 2, 0, 2, 2, 2, 2, 0, 0, 2, 0, 0, 2, 0, 2, 0, 2, 2, 2,
-			2, 2, 0, 2, 0, 0, 0, 0, 0, 2, 0, 2, 0, 2, 2, 0, 0, 2, 2, 0, 2, 2, 2, 2, 2, 0, 0, 0, 0,
-			2, 0, 2, 2, 2, 0
-		]
-	);
+    let (sources, turns) = plan(1125, 1600, "843507");
+    assert_eq!(
+        sources,
+        [
+            12, 43, 32, 35, 49, 45, 22, 37, 16, 4, 56, 59, 25, 63, 23, 6, 2, 33, 60, 19, 44, 54,
+            61, 39, 11, 36, 9, 24, 42, 62, 13, 29, 28, 34, 3, 0, 58, 30, 7, 15, 51, 41, 1, 57, 10,
+            47, 21, 55, 40, 52, 20, 27, 50, 53, 46, 14, 8, 26, 18, 48, 17, 31, 38, 5
+        ]
+    );
+    assert_eq!(
+        turns,
+        [
+            0, 2, 0, 2, 2, 2, 2, 2, 0, 0, 2, 2, 0, 2, 2, 2, 2, 0, 0, 2, 0, 0, 2, 0, 2, 0, 2, 2, 2,
+            2, 2, 0, 2, 0, 0, 0, 0, 0, 2, 0, 2, 0, 2, 2, 0, 0, 2, 2, 0, 2, 2, 2, 2, 2, 0, 0, 0, 0,
+            2, 0, 2, 2, 2, 0
+        ]
+    );
 
-	// square tiles are the only ones turned by a quarter
-	let (sources, turns) = plan(64, 64, "1");
-	assert_eq!(
-		sources,
-		[
-			10, 27, 57, 4, 1, 49, 22, 32, 62, 52, 17, 5, 51, 28, 45, 0, 53, 30, 44, 12, 43, 42, 46,
-			59, 40, 39, 50, 37, 41, 19, 7, 3, 29, 11, 35, 48, 26, 55, 23, 36, 21, 33, 18, 24, 61,
-			6, 16, 63, 15, 2, 54, 58, 38, 31, 34, 47, 60, 20, 13, 14, 56, 25, 9, 8
-		]
-	);
-	assert_eq!(
-		turns,
-		[
-			1, 3, 2, 0, 1, 1, 2, 1, 0, 3, 2, 0, 0, 2, 2, 3, 1, 0, 2, 1, 1, 3, 2, 2, 1, 3, 0, 2, 2,
-			2, 3, 0, 0, 1, 1, 3, 1, 2, 1, 1, 2, 0, 3, 1, 1, 0, 1, 1, 2, 0, 0, 2, 0, 3, 1, 1, 2, 1,
-			2, 0, 1, 3, 0, 0
-		]
-	);
+    // square tiles are the only ones turned by a quarter
+    let (sources, turns) = plan(64, 64, "1");
+    assert_eq!(
+        sources,
+        [
+            10, 27, 57, 4, 1, 49, 22, 32, 62, 52, 17, 5, 51, 28, 45, 0, 53, 30, 44, 12, 43, 42, 46,
+            59, 40, 39, 50, 37, 41, 19, 7, 3, 29, 11, 35, 48, 26, 55, 23, 36, 21, 33, 18, 24, 61,
+            6, 16, 63, 15, 2, 54, 58, 38, 31, 34, 47, 60, 20, 13, 14, 56, 25, 9, 8
+        ]
+    );
+    assert_eq!(
+        turns,
+        [
+            1, 3, 2, 0, 1, 1, 2, 1, 0, 3, 2, 0, 0, 2, 2, 3, 1, 0, 2, 1, 1, 3, 2, 2, 1, 3, 0, 2, 2,
+            2, 3, 0, 0, 1, 1, 3, 1, 2, 1, 1, 2, 0, 3, 1, 1, 0, 1, 1, 2, 0, 0, 2, 0, 3, 1, 1, 2, 1,
+            2, 0, 1, 3, 0, 0
+        ]
+    );
 
-	// narrower than the grid
-	assert!(scramble_plan(7, 1600, "843507").is_none());
-	assert!(scramble_plan(1125, 7, "843507").is_none());
+    // narrower than the grid
+    assert!(scramble_plan(7, 1600, "843507").is_none());
+    assert!(scramble_plan(1125, 7, "843507").is_none());
 }

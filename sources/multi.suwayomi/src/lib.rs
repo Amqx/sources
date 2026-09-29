@@ -8,16 +8,16 @@ mod settings;
 const CATEGORY_FILTER_ID: &str = "CATEGORY";
 
 use crate::models::{
-	FetchChapterPagesResponse, GraphQLResponse, MangaOnlyDescriptionResponse, MultipleCategories,
-	MultipleChapters, MultipleMangas,
+    FetchChapterPagesResponse, GraphQLResponse, MangaOnlyDescriptionResponse, MultipleCategories,
+    MultipleChapters, MultipleMangas,
 };
 use aidoku::imports::std::send_partial_result;
 use aidoku::{
-	AidokuError, BaseUrlProvider, BasicLoginHandler, Chapter, DynamicListings, FilterValue,
-	Listing, ListingProvider, Manga, MangaPageResult, Page, PageContent, Result, Source,
-	alloc::{String, Vec},
-	imports::net::Request,
-	prelude::*,
+    AidokuError, BaseUrlProvider, BasicLoginHandler, Chapter, DynamicListings, FilterValue,
+    Listing, ListingProvider, Manga, MangaPageResult, Page, PageContent, Result, Source,
+    alloc::{String, Vec},
+    imports::net::Request,
+    prelude::*,
 };
 use alloc::string::ToString;
 use alloc::vec;
@@ -26,380 +26,380 @@ use base64::{Engine, engine::general_purpose::STANDARD};
 struct Suwayomi;
 
 impl Suwayomi {
-	fn send_graphql_post_request(
-		&self,
-		base_url: &str,
-		body: String,
-	) -> core::result::Result<Request, aidoku::imports::net::RequestError> {
-		let req = Request::post(format!("{base_url}/api/graphql"))?
-			.header("Content-Type", "application/json")
-			.body(body);
-		Ok(req)
-	}
+    fn send_graphql_post_request(
+        &self,
+        base_url: &str,
+        body: String,
+    ) -> core::result::Result<Request, aidoku::imports::net::RequestError> {
+        let req = Request::post(format!("{base_url}/api/graphql"))?
+            .header("Content-Type", "application/json")
+            .body(body);
+        Ok(req)
+    }
 
-	fn send_basic_auth_request(
-		&self,
-		base_url: &str,
-		user: &str,
-		pass: &str,
-		body: String,
-	) -> core::result::Result<Request, aidoku::imports::net::RequestError> {
-		let auth = STANDARD.encode(format!("{user}:{pass}"));
-		let req = self
-			.send_graphql_post_request(base_url, body)?
-			.header("Authorization", &format!("Basic {auth}"));
-		Ok(req)
-	}
+    fn send_basic_auth_request(
+        &self,
+        base_url: &str,
+        user: &str,
+        pass: &str,
+        body: String,
+    ) -> core::result::Result<Request, aidoku::imports::net::RequestError> {
+        let auth = STANDARD.encode(format!("{user}:{pass}"));
+        let req = self
+            .send_graphql_post_request(base_url, body)?
+            .header("Authorization", &format!("Basic {auth}"));
+        Ok(req)
+    }
 
-	fn send_form_login_request(
-		&self,
-		base_url: &str,
-		user: &str,
-		pass: &str,
-	) -> core::result::Result<Request, aidoku::imports::net::RequestError> {
-		let form = format!(
-			"user={}&pass={}",
-			aidoku::helpers::uri::encode_uri_component(user),
-			aidoku::helpers::uri::encode_uri_component(pass)
-		);
-		let req = Request::post(format!("{base_url}/login.html"))?
-			.header("Content-Type", "application/x-www-form-urlencoded")
-			.body(form);
-		Ok(req)
-	}
+    fn send_form_login_request(
+        &self,
+        base_url: &str,
+        user: &str,
+        pass: &str,
+    ) -> core::result::Result<Request, aidoku::imports::net::RequestError> {
+        let form = format!(
+            "user={}&pass={}",
+            aidoku::helpers::uri::encode_uri_component(user),
+            aidoku::helpers::uri::encode_uri_component(pass)
+        );
+        let req = Request::post(format!("{base_url}/login.html"))?
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(form);
+        Ok(req)
+    }
 
-	fn graphql_request<T>(&self, body: serde_json::Value) -> Result<GraphQLResponse<T>>
-	where
-		T: serde::de::DeserializeOwned,
-	{
-		let base_url = settings::get_base_url()?;
-		let auth_mode = settings::get_auth_mode();
-		let body_str = body.to_string();
+    fn graphql_request<T>(&self, body: serde_json::Value) -> Result<GraphQLResponse<T>>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        let base_url = settings::get_base_url()?;
+        let auth_mode = settings::get_auth_mode();
+        let body_str = body.to_string();
 
-		let send_req = |with_basic: bool| -> Result<GraphQLResponse<T>> {
-			let request = if with_basic && let Some((user, pass)) = settings::get_credentials() {
-				self.send_basic_auth_request(&base_url, &user, &pass, body_str.clone())?
-			} else {
-				self.send_graphql_post_request(&base_url, body_str.clone())?
-			};
-			request.json_owned::<GraphQLResponse<T>>()
-		};
+        let send_req = |with_basic: bool| -> Result<GraphQLResponse<T>> {
+            let request = if with_basic && let Some((user, pass)) = settings::get_credentials() {
+                self.send_basic_auth_request(&base_url, &user, &pass, body_str.clone())?
+            } else {
+                self.send_graphql_post_request(&base_url, body_str.clone())?
+            };
+            request.json_owned::<GraphQLResponse<T>>()
+        };
 
-		let do_login_html = || -> Result<()> {
-			if let Some((user, pass)) = settings::get_credentials() {
-				let _ = self
-					.send_form_login_request(&base_url, &user, &pass)?
-					.send()
-					.ok();
-			}
-			Ok(())
-		};
+        let do_login_html = || -> Result<()> {
+            if let Some((user, pass)) = settings::get_credentials() {
+                let _ = self
+                    .send_form_login_request(&base_url, &user, &pass)?
+                    .send()
+                    .ok();
+            }
+            Ok(())
+        };
 
-		match auth_mode.as_str() {
-			"none" => send_req(false),
-			"basic_auth" => send_req(true),
-			"simple_login" => {
-				do_login_html()?;
-				send_req(false)
-			}
-			_ => {
-				let resp = send_req(true);
-				if resp.is_err() {
-					do_login_html()?;
-					return send_req(true);
-				}
-				resp
-			}
-		}
-	}
+        match auth_mode.as_str() {
+            "none" => send_req(false),
+            "basic_auth" => send_req(true),
+            "simple_login" => {
+                do_login_html()?;
+                send_req(false)
+            }
+            _ => {
+                let resp = send_req(true);
+                if resp.is_err() {
+                    do_login_html()?;
+                    return send_req(true);
+                }
+                resp
+            }
+        }
+    }
 
-	fn execute_query<T>(
-		&self,
-		gql: graphql::GraphQLQuery,
-		variables: Option<serde_json::Value>,
-	) -> Result<GraphQLResponse<T>>
-	where
-		T: serde::de::DeserializeOwned,
-	{
-		let mut body = serde_json::json!({
-			"operationName": gql.operation_name,
-			"query": gql.query,
-		});
+    fn execute_query<T>(
+        &self,
+        gql: graphql::GraphQLQuery,
+        variables: Option<serde_json::Value>,
+    ) -> Result<GraphQLResponse<T>>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        let mut body = serde_json::json!({
+            "operationName": gql.operation_name,
+            "query": gql.query,
+        });
 
-		if let Some(vars) = variables {
-			body["variables"] = vars;
-		}
+        if let Some(vars) = variables {
+            body["variables"] = vars;
+        }
 
-		self.graphql_request(body)
-	}
+        self.graphql_request(body)
+    }
 }
 
 impl Source for Suwayomi {
-	fn new() -> Self {
-		Self
-	}
+    fn new() -> Self {
+        Self
+    }
 
-	fn get_search_manga_list(
-		&self,
-		query: Option<String>,
-		_page: i32,
-		filters: Vec<FilterValue>,
-	) -> Result<MangaPageResult> {
-		let mut condition = serde_json::Map::new();
-		condition.insert("inLibrary".to_string(), serde_json::json!(true));
+    fn get_search_manga_list(
+        &self,
+        query: Option<String>,
+        _page: i32,
+        filters: Vec<FilterValue>,
+    ) -> Result<MangaPageResult> {
+        let mut condition = serde_json::Map::new();
+        condition.insert("inLibrary".to_string(), serde_json::json!(true));
 
-		let mut order: Vec<serde_json::Value> = Vec::new();
-		let mut manga_filter = serde_json::Map::new();
+        let mut order: Vec<serde_json::Value> = Vec::new();
+        let mut manga_filter = serde_json::Map::new();
 
-		for filter in filters {
-			match filter {
-				FilterValue::Sort {
-					index, ascending, ..
-				} => {
-					let property = match index {
-						0 => "TITLE",
-						1 => "IN_LIBRARY_AT",
-						2 => "LAST_FETCHED_AT",
-						_ => continue,
-					};
-					order.push(serde_json::json!({
-						"by": property,
-						"byType": if ascending { "ASC" } else { "DESC" }
-					}));
-				}
-				FilterValue::Check { id, value } => {
-					if id == CATEGORY_FILTER_ID {
-						// This is special cased since the "Default" category means you don't have
-						// any categories attached to the manga.
-						let filter_value = if value == 0 {
-							serde_json::json!({"isNull": true})
-						} else {
-							serde_json::json!({"equalTo": value})
-						};
-						manga_filter.insert("categoryId".to_string(), filter_value);
-					}
-				}
-				_ => continue,
-			}
-		}
+        for filter in filters {
+            match filter {
+                FilterValue::Sort {
+                    index, ascending, ..
+                } => {
+                    let property = match index {
+                        0 => "TITLE",
+                        1 => "IN_LIBRARY_AT",
+                        2 => "LAST_FETCHED_AT",
+                        _ => continue,
+                    };
+                    order.push(serde_json::json!({
+                        "by": property,
+                        "byType": if ascending { "ASC" } else { "DESC" }
+                    }));
+                }
+                FilterValue::Check { id, value } => {
+                    if id == CATEGORY_FILTER_ID {
+                        // This is special cased since the "Default" category means you don't have
+                        // any categories attached to the manga.
+                        let filter_value = if value == 0 {
+                            serde_json::json!({"isNull": true})
+                        } else {
+                            serde_json::json!({"equalTo": value})
+                        };
+                        manga_filter.insert("categoryId".to_string(), filter_value);
+                    }
+                }
+                _ => continue,
+            }
+        }
 
-		if let Some(query) = query {
-			manga_filter.insert(
-				"title".to_string(),
-				serde_json::json!({
-					"likeInsensitive": format!("%{}%", query)
-				}),
-			);
-		}
+        if let Some(query) = query {
+            manga_filter.insert(
+                "title".to_string(),
+                serde_json::json!({
+                    "likeInsensitive": format!("%{}%", query)
+                }),
+            );
+        }
 
-		let mut variables = serde_json::Map::new();
-		variables.insert(
-			"condition".to_string(),
-			serde_json::Value::Object(condition),
-		);
-		variables.insert("order".to_string(), serde_json::Value::Array(order));
-		variables.insert(
-			"filter".to_string(),
-			serde_json::Value::Object(manga_filter),
-		);
+        let mut variables = serde_json::Map::new();
+        variables.insert(
+            "condition".to_string(),
+            serde_json::Value::Object(condition),
+        );
+        variables.insert("order".to_string(), serde_json::Value::Array(order));
+        variables.insert(
+            "filter".to_string(),
+            serde_json::Value::Object(manga_filter),
+        );
 
-		let json_value = serde_json::Value::Object(variables);
+        let json_value = serde_json::Value::Object(variables);
 
-		let response = self.execute_query::<MultipleMangas>(
-			graphql::GraphQLQuery::SEARCH_MANGA_LIST,
-			Some(json_value),
-		)?;
+        let response = self.execute_query::<MultipleMangas>(
+            graphql::GraphQLQuery::SEARCH_MANGA_LIST,
+            Some(json_value),
+        )?;
 
-		let base_url = settings::get_base_url()?;
-		Ok(MangaPageResult {
-			entries: response
-				.data
-				.mangas
-				.nodes
-				.into_iter()
-				.map(|m| m.into_manga(&base_url))
-				.collect(),
-			has_next_page: false,
-		})
-	}
+        let base_url = settings::get_base_url()?;
+        Ok(MangaPageResult {
+            entries: response
+                .data
+                .mangas
+                .nodes
+                .into_iter()
+                .map(|m| m.into_manga(&base_url))
+                .collect(),
+            has_next_page: false,
+        })
+    }
 
-	fn get_manga_update(
-		&self,
-		mut manga: Manga,
-		needs_details: bool,
-		needs_chapters: bool,
-	) -> Result<Manga> {
-		let manga_id = manga
-			.key
-			.parse::<i32>()
-			.map_err(|_| AidokuError::DeserializeError)?;
-		if needs_details {
-			let response = self.execute_query::<MangaOnlyDescriptionResponse>(
-				graphql::GraphQLQuery::MANGA_DESCRIPTION,
-				Some(serde_json::json!({
-					"mangaId": manga_id
-				})),
-			)?;
+    fn get_manga_update(
+        &self,
+        mut manga: Manga,
+        needs_details: bool,
+        needs_chapters: bool,
+    ) -> Result<Manga> {
+        let manga_id = manga
+            .key
+            .parse::<i32>()
+            .map_err(|_| AidokuError::DeserializeError)?;
+        if needs_details {
+            let response = self.execute_query::<MangaOnlyDescriptionResponse>(
+                graphql::GraphQLQuery::MANGA_DESCRIPTION,
+                Some(serde_json::json!({
+                    "mangaId": manga_id
+                })),
+            )?;
 
-			manga.description = Some(response.data.manga.description);
+            manga.description = Some(response.data.manga.description);
 
-			if needs_chapters {
-				send_partial_result(&manga);
-			}
-		}
-		if needs_chapters {
-			let response = self.execute_query::<MultipleChapters>(
-				graphql::GraphQLQuery::MANGA_CHAPTERS,
-				Some(serde_json::json!({
-					"mangaId": manga_id
-				})),
-			)?;
+            if needs_chapters {
+                send_partial_result(&manga);
+            }
+        }
+        if needs_chapters {
+            let response = self.execute_query::<MultipleChapters>(
+                graphql::GraphQLQuery::MANGA_CHAPTERS,
+                Some(serde_json::json!({
+                    "mangaId": manga_id
+                })),
+            )?;
 
-			let base_url = settings::get_base_url()?;
-			manga.chapters = Some(
-				response
-					.data
-					.chapters
-					.nodes
-					.into_iter()
-					.map(|c| c.into_chapter(&base_url, manga_id))
-					.collect(),
-			);
-		}
+            let base_url = settings::get_base_url()?;
+            manga.chapters = Some(
+                response
+                    .data
+                    .chapters
+                    .nodes
+                    .into_iter()
+                    .map(|c| c.into_chapter(&base_url, manga_id))
+                    .collect(),
+            );
+        }
 
-		Ok(manga)
-	}
+        Ok(manga)
+    }
 
-	fn get_page_list(&self, _manga: Manga, chapter: Chapter) -> Result<Vec<Page>> {
-		let chapter_id = chapter
-			.key
-			.parse::<i32>()
-			.map_err(|_| AidokuError::DeserializeError)?;
+    fn get_page_list(&self, _manga: Manga, chapter: Chapter) -> Result<Vec<Page>> {
+        let chapter_id = chapter
+            .key
+            .parse::<i32>()
+            .map_err(|_| AidokuError::DeserializeError)?;
 
-		let response = self.execute_query::<FetchChapterPagesResponse>(
-			graphql::GraphQLQuery::CHAPTER_PAGES,
-			Some(serde_json::json!({
-				"input": {
-					"chapterId": chapter_id
-				}
-			})),
-		)?;
+        let response = self.execute_query::<FetchChapterPagesResponse>(
+            graphql::GraphQLQuery::CHAPTER_PAGES,
+            Some(serde_json::json!({
+                "input": {
+                    "chapterId": chapter_id
+                }
+            })),
+        )?;
 
-		let base_url = settings::get_base_url()?;
-		Ok(response
-			.data
-			.fetch_chapter_pages
-			.pages
-			.into_iter()
-			.map(|url| {
-				let full_url = format!("{}{}", base_url, url);
-				Page {
-					content: PageContent::Url(full_url, None),
-					..Default::default()
-				}
-			})
-			.collect())
-	}
+        let base_url = settings::get_base_url()?;
+        Ok(response
+            .data
+            .fetch_chapter_pages
+            .pages
+            .into_iter()
+            .map(|url| {
+                let full_url = format!("{}{}", base_url, url);
+                Page {
+                    content: PageContent::Url(full_url, None),
+                    ..Default::default()
+                }
+            })
+            .collect())
+    }
 }
 
 impl ListingProvider for Suwayomi {
-	fn get_manga_list(&self, listing: Listing, page: i32) -> Result<MangaPageResult> {
-		let category_id = listing
-			.id
-			.parse::<i32>()
-			.map_err(|_| AidokuError::DeserializeError)?;
+    fn get_manga_list(&self, listing: Listing, page: i32) -> Result<MangaPageResult> {
+        let category_id = listing
+            .id
+            .parse::<i32>()
+            .map_err(|_| AidokuError::DeserializeError)?;
 
-		self.get_search_manga_list(
-			None,
-			page,
-			vec![
-				FilterValue::Sort {
-					id: String::default(),
-					index: 0,
-					ascending: true,
-				},
-				FilterValue::Check {
-					id: CATEGORY_FILTER_ID.to_string(),
-					value: category_id,
-				},
-			],
-		)
-	}
+        self.get_search_manga_list(
+            None,
+            page,
+            vec![
+                FilterValue::Sort {
+                    id: String::default(),
+                    index: 0,
+                    ascending: true,
+                },
+                FilterValue::Check {
+                    id: CATEGORY_FILTER_ID.to_string(),
+                    value: category_id,
+                },
+            ],
+        )
+    }
 }
 
 impl DynamicListings for Suwayomi {
-	fn get_dynamic_listings(&self) -> Result<Vec<Listing>> {
-		let response =
-			self.execute_query::<MultipleCategories>(graphql::GraphQLQuery::CATEGORIES, None)?;
+    fn get_dynamic_listings(&self) -> Result<Vec<Listing>> {
+        let response =
+            self.execute_query::<MultipleCategories>(graphql::GraphQLQuery::CATEGORIES, None)?;
 
-		let categories = response.data.categories.nodes;
-		let total_count = categories.len();
+        let categories = response.data.categories.nodes;
+        let total_count = categories.len();
 
-		Ok(categories
-			.into_iter()
-			.map(|c| c.into_listing(total_count))
-			.collect())
-	}
+        Ok(categories
+            .into_iter()
+            .map(|c| c.into_listing(total_count))
+            .collect())
+    }
 }
 
 impl BaseUrlProvider for Suwayomi {
-	fn get_base_url(&self) -> Result<String> {
-		settings::get_base_url()
-	}
+    fn get_base_url(&self) -> Result<String> {
+        settings::get_base_url()
+    }
 }
 
 impl BasicLoginHandler for Suwayomi {
-	fn handle_basic_login(&self, _key: String, username: String, password: String) -> Result<bool> {
-		let base_url = settings::get_base_url()?;
-		let auth_mode = settings::get_auth_mode();
+    fn handle_basic_login(&self, _key: String, username: String, password: String) -> Result<bool> {
+        let base_url = settings::get_base_url()?;
+        let auth_mode = settings::get_auth_mode();
 
-		let send_basic_req = || {
-			let body = serde_json::json!({
-				"operationName": graphql::GraphQLQuery::CATEGORIES.operation_name,
-				"query": graphql::GraphQLQuery::CATEGORIES.query,
-			});
-			self.send_basic_auth_request(&base_url, &username, &password, body.to_string())?
-				.send()
-		};
+        let send_basic_req = || {
+            let body = serde_json::json!({
+                "operationName": graphql::GraphQLQuery::CATEGORIES.operation_name,
+                "query": graphql::GraphQLQuery::CATEGORIES.query,
+            });
+            self.send_basic_auth_request(&base_url, &username, &password, body.to_string())?
+                .send()
+        };
 
-		let send_form_req = || {
-			self.send_form_login_request(&base_url, &username, &password)?
-				.send()
-		};
+        let send_form_req = || {
+            self.send_form_login_request(&base_url, &username, &password)?
+                .send()
+        };
 
-		match auth_mode.as_str() {
-			"none" => Ok(true),
-			"basic_auth" => {
-				let resp = send_basic_req()?;
-				Ok(resp.status_code() == 200)
-			}
-			"simple_login" => {
-				let resp = send_form_req()?;
-				Ok(resp.status_code() == 200)
-			}
-			_ => {
-				// auto: try basic auth first
-				if let Ok(resp) = send_basic_req()
-					&& resp.status_code() == 200
-				{
-					return Ok(true);
-				}
-				// try form login next
-				if let Ok(resp) = send_form_req()
-					&& resp.status_code() == 200
-				{
-					return Ok(true);
-				}
-				Ok(false)
-			}
-		}
-	}
+        match auth_mode.as_str() {
+            "none" => Ok(true),
+            "basic_auth" => {
+                let resp = send_basic_req()?;
+                Ok(resp.status_code() == 200)
+            }
+            "simple_login" => {
+                let resp = send_form_req()?;
+                Ok(resp.status_code() == 200)
+            }
+            _ => {
+                // auto: try basic auth first
+                if let Ok(resp) = send_basic_req()
+                    && resp.status_code() == 200
+                {
+                    return Ok(true);
+                }
+                // try form login next
+                if let Ok(resp) = send_form_req()
+                    && resp.status_code() == 200
+                {
+                    return Ok(true);
+                }
+                Ok(false)
+            }
+        }
+    }
 }
 
 register_source!(
-	Suwayomi,
-	ListingProvider,
-	BaseUrlProvider,
-	DynamicListings,
-	BasicLoginHandler
+    Suwayomi,
+    ListingProvider,
+    BaseUrlProvider,
+    DynamicListings,
+    BasicLoginHandler
 );

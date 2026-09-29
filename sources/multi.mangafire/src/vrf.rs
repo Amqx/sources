@@ -1,8 +1,8 @@
 // reference: https://github.com/disk-iq8/extensions-source/blob/4125cade05e57307d6c97d1cbdfdd9bf2bb443a1/src/all/mangafire/src/eu/kanade/tachiyomi/extension/all/mangafire/VrfSigner.kt
 use aidoku::alloc::{string::String, vec::Vec};
 use base64::{
-	Engine as _,
-	engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD},
+    Engine as _,
+    engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD},
 };
 
 const TABLE_1: &str = "yINlmUNho8VYJT+ibTIP+9ESiULpVEtMOoD6U6lRE0R/xwXo/Xp9NrUgC4cw/Lmo33vUyjUE40kUoEWIr/fxfNNcq2s79ShQ5NhNrFnJ4hXPwOu/SuXzIbuTQKGFvfm08E9jvCfqAtoDqvQq3dVWPQFmJjgvkISBeXY3BgANR+yVnjGbcxZ47d6kLNfZPIayTq3/YGySb1KuVZodWp/WGNAO5pfMcpaK53Hhs0allBszaMaxuouOwdxbwgxIw6YunSsXjI05Yi0j9j4eHKfSXR8Ifo/Od+8iamRfCXTyvm7NGRGYdcQ0ywcK/u6RXhrbcCm4t2eCtrDgQVecJGkQ+A==";
@@ -13,51 +13,51 @@ const TABLE_3: &str = "NQHlu1/wVO5EmkwQymF810qqY2xG1k2obcas4Z9mCsPEIFl9pRIjFxbJ7
 const KEY_3: &str = "DELOJgPsVaCcblDtTGMdHzM=";
 
 fn encrypt_stage(data: &[u8], table: &[u8], key: &[u8], iv: u8) -> Vec<u8> {
-	let mut output = Vec::with_capacity(data.len());
-	let mut previous = iv;
-	for (index, byte) in data.iter().enumerate() {
-		previous = table[(byte ^ key[index % key.len()] ^ previous) as usize];
-		output.push(previous);
-	}
-	output
+    let mut output = Vec::with_capacity(data.len());
+    let mut previous = iv;
+    for (index, byte) in data.iter().enumerate() {
+        previous = table[(byte ^ key[index % key.len()] ^ previous) as usize];
+        output.push(previous);
+    }
+    output
 }
 
 pub fn sign(path: &str) -> String {
-	let stages = [
-		(
-			STANDARD.decode(TABLE_1).expect("valid VRF table"),
-			STANDARD.decode(KEY_1).expect("valid VRF key"),
-			0x5A,
-		),
-		(
-			STANDARD.decode(TABLE_2).expect("valid VRF table"),
-			STANDARD.decode(KEY_2).expect("valid VRF key"),
-			0x35,
-		),
-		(
-			STANDARD.decode(TABLE_3).expect("valid VRF table"),
-			STANDARD.decode(KEY_3).expect("valid VRF key"),
-			0xBA,
-		),
-	];
-	let mut data = path.as_bytes().to_vec();
-	for (table, key, iv) in stages {
-		data = encrypt_stage(&data, &table, &key, iv);
-	}
-	URL_SAFE_NO_PAD.encode(data)
+    let stages = [
+        (
+            STANDARD.decode(TABLE_1).expect("valid VRF table"),
+            STANDARD.decode(KEY_1).expect("valid VRF key"),
+            0x5A,
+        ),
+        (
+            STANDARD.decode(TABLE_2).expect("valid VRF table"),
+            STANDARD.decode(KEY_2).expect("valid VRF key"),
+            0x35,
+        ),
+        (
+            STANDARD.decode(TABLE_3).expect("valid VRF table"),
+            STANDARD.decode(KEY_3).expect("valid VRF key"),
+            0xBA,
+        ),
+    ];
+    let mut data = path.as_bytes().to_vec();
+    for (table, key, iv) in stages {
+        data = encrypt_stage(&data, &table, &key, iv);
+    }
+    URL_SAFE_NO_PAD.encode(data)
 }
 
 #[cfg(test)]
 mod tests {
-	use super::sign;
+    use super::sign;
 
-	#[test]
-	fn signs_titles_query() {
-		assert_eq!(
-			sign(
-				"/titles?content_rating[0]=safe&content_rating[1]=suggestive&limit=30&order[chapter_updated_at]=desc&page=1"
-			),
-			"8sK3xtqdFZdOu6WNqS1bZ0shnUDqyRXMnh4NlZ7aYCPUhmAbm1C1qPzeL_OIIf0obIggCZIHJHIF_VdaYGWoz1D2WyKu2XhBqaoQcC-UzOL9vlMOE6MXU01kzYuIPwgPSvk_Z55Rw17nfA"
-		);
-	}
+    #[test]
+    fn signs_titles_query() {
+        assert_eq!(
+            sign(
+                "/titles?content_rating[0]=safe&content_rating[1]=suggestive&limit=30&order[chapter_updated_at]=desc&page=1"
+            ),
+            "8sK3xtqdFZdOu6WNqS1bZ0shnUDqyRXMnh4NlZ7aYCPUhmAbm1C1qPzeL_OIIf0obIggCZIHJHIF_VdaYGWoz1D2WyKu2XhBqaoQcC-UzOL9vlMOE6MXU01kzYuIPwgPSvk_Z55Rw17nfA"
+        );
+    }
 }

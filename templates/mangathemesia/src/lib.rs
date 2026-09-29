@@ -1,9 +1,9 @@
 #![no_std]
 use aidoku::{
-	Chapter, DeepLinkHandler, DeepLinkResult, FilterValue, Home, HomeLayout, ImageRequestProvider,
-	Manga, MangaPageResult, Page, PageContext, Result, Source,
-	alloc::{String, Vec, borrow::Cow},
-	imports::net::Request,
+    Chapter, DeepLinkHandler, DeepLinkResult, FilterValue, Home, HomeLayout, ImageRequestProvider,
+    Manga, MangaPageResult, Page, PageContext, Result, Source,
+    alloc::{String, Vec, borrow::Cow},
+    imports::net::Request,
 };
 
 pub mod helpers;
@@ -12,25 +12,25 @@ mod imp;
 pub use imp::Impl;
 
 pub struct Params {
-	pub base_url: Cow<'static, str>,
-	pub manga_url_directory: Cow<'static, str>,
-	pub date_format: Cow<'static, str>,
-	pub date_locale: Cow<'static, str>,
-	pub mark_all_nsfw: bool,
-	pub series_title_selector: Cow<'static, str>,
-	pub series_cover_selector: Cow<'static, str>,
-	pub series_artist_selector: Cow<'static, str>,
-	pub series_author_selector: Cow<'static, str>,
-	pub series_description_selector: Cow<'static, str>,
-	pub series_genre_selector: Cow<'static, str>,
-	pub series_type_selector: Cow<'static, str>,
-	pub series_status_selector: Cow<'static, str>,
-	pub chapter_list_selector: Cow<'static, str>,
+    pub base_url: Cow<'static, str>,
+    pub manga_url_directory: Cow<'static, str>,
+    pub date_format: Cow<'static, str>,
+    pub date_locale: Cow<'static, str>,
+    pub mark_all_nsfw: bool,
+    pub series_title_selector: Cow<'static, str>,
+    pub series_cover_selector: Cow<'static, str>,
+    pub series_artist_selector: Cow<'static, str>,
+    pub series_author_selector: Cow<'static, str>,
+    pub series_description_selector: Cow<'static, str>,
+    pub series_genre_selector: Cow<'static, str>,
+    pub series_type_selector: Cow<'static, str>,
+    pub series_status_selector: Cow<'static, str>,
+    pub chapter_list_selector: Cow<'static, str>,
 }
 
 impl Default for Params {
-	fn default() -> Self {
-		Self {
+    fn default() -> Self {
+        Self {
 			base_url: "".into(),
 			manga_url_directory: "/manga".into(),
 			date_format: "MMMM dd, yyyy".into(),
@@ -87,60 +87,60 @@ impl Default for Params {
 			).into(),
 			chapter_list_selector: "div.bxcl li, div.cl li, #chapterlist li, ul li:has(div.chbox):has(div.eph-num)".into(),
 		}
-	}
+    }
 }
 
 pub struct MangaThemesia<T: Impl> {
-	inner: T,
-	params: Params,
+    inner: T,
+    params: Params,
 }
 
 impl<T: Impl> Source for MangaThemesia<T> {
-	fn new() -> Self {
-		let inner = T::new();
-		let params = inner.params();
-		Self { inner, params }
-	}
+    fn new() -> Self {
+        let inner = T::new();
+        let params = inner.params();
+        Self { inner, params }
+    }
 
-	fn get_search_manga_list(
-		&self,
-		query: Option<String>,
-		page: i32,
-		filters: Vec<FilterValue>,
-	) -> Result<MangaPageResult> {
-		self.inner
-			.get_search_manga_list(&self.params, query, page, filters)
-	}
+    fn get_search_manga_list(
+        &self,
+        query: Option<String>,
+        page: i32,
+        filters: Vec<FilterValue>,
+    ) -> Result<MangaPageResult> {
+        self.inner
+            .get_search_manga_list(&self.params, query, page, filters)
+    }
 
-	fn get_manga_update(
-		&self,
-		manga: Manga,
-		needs_details: bool,
-		needs_chapters: bool,
-	) -> Result<Manga> {
-		self.inner
-			.get_manga_update(&self.params, manga, needs_details, needs_chapters)
-	}
+    fn get_manga_update(
+        &self,
+        manga: Manga,
+        needs_details: bool,
+        needs_chapters: bool,
+    ) -> Result<Manga> {
+        self.inner
+            .get_manga_update(&self.params, manga, needs_details, needs_chapters)
+    }
 
-	fn get_page_list(&self, manga: Manga, chapter: Chapter) -> Result<Vec<Page>> {
-		self.inner.get_page_list(&self.params, manga, chapter)
-	}
+    fn get_page_list(&self, manga: Manga, chapter: Chapter) -> Result<Vec<Page>> {
+        self.inner.get_page_list(&self.params, manga, chapter)
+    }
 }
 
 impl<T: Impl> ImageRequestProvider for MangaThemesia<T> {
-	fn get_image_request(&self, url: String, context: Option<PageContext>) -> Result<Request> {
-		self.inner.get_image_request(&self.params, url, context)
-	}
+    fn get_image_request(&self, url: String, context: Option<PageContext>) -> Result<Request> {
+        self.inner.get_image_request(&self.params, url, context)
+    }
 }
 
 impl<T: Impl> Home for MangaThemesia<T> {
-	fn get_home(&self) -> Result<HomeLayout> {
-		self.inner.get_home(&self.params)
-	}
+    fn get_home(&self) -> Result<HomeLayout> {
+        self.inner.get_home(&self.params)
+    }
 }
 
 impl<T: Impl> DeepLinkHandler for MangaThemesia<T> {
-	fn handle_deep_link(&self, url: String) -> Result<Option<DeepLinkResult>> {
-		self.inner.handle_deep_link(&self.params, url)
-	}
+    fn handle_deep_link(&self, url: String) -> Result<Option<DeepLinkResult>> {
+        self.inner.handle_deep_link(&self.params, url)
+    }
 }

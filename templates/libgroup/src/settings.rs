@@ -12,20 +12,20 @@ const DEFAULT_COVER_QUALITY: &str = "default";
 
 /// Get the base URL
 pub fn get_base_url() -> String {
-	defaults_get::<String>(BASE_URL_KEY).unwrap_or_default()
+    defaults_get::<String>(BASE_URL_KEY).unwrap_or_default()
 }
 
 /// Get the API base URL
 pub fn get_api_url() -> String {
-	defaults_get::<String>(API_URL_KEY).unwrap_or_else(|| DEFAULT_API_URL.into())
+    defaults_get::<String>(API_URL_KEY).unwrap_or_else(|| DEFAULT_API_URL.into())
 }
 
 /// Get the image server base URL
 pub fn get_image_server_url() -> String {
-	defaults_get::<String>(IMAGE_SERVER_KEY).unwrap_or_else(|| DEFAULT_IMAGE_SERVER.into())
+    defaults_get::<String>(IMAGE_SERVER_KEY).unwrap_or_else(|| DEFAULT_IMAGE_SERVER.into())
 }
 
 /// Get the cover quality setting
 pub fn get_cover_quality_url() -> String {
-	defaults_get::<String>(COVER_QUALITY_KEY).unwrap_or_else(|| DEFAULT_COVER_QUALITY.into())
+    defaults_get::<String>(COVER_QUALITY_KEY).unwrap_or_else(|| DEFAULT_COVER_QUALITY.into())
 }

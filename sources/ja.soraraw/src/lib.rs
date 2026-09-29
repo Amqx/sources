@@ -1,16 +1,16 @@
 #![no_std]
 use aidoku::{
-	Chapter, DeepLinkHandler, DeepLinkResult, DynamicFilters, Filter, FilterValue, ImageResponse,
-	Listing, ListingProvider, Manga, MangaPageResult, Page, PageContent, PageContext,
-	PageImageProcessor, Result, SelectFilter, Source,
-	alloc::{String, Vec, borrow::Cow, string::ToString, vec},
-	canvas::{Rect, Transform},
-	imports::{
-		canvas::{Canvas, ImageRef},
-		net::Request,
-		std::send_partial_result,
-	},
-	prelude::*,
+    Chapter, DeepLinkHandler, DeepLinkResult, DynamicFilters, Filter, FilterValue, ImageResponse,
+    Listing, ListingProvider, Manga, MangaPageResult, Page, PageContent, PageContext,
+    PageImageProcessor, Result, SelectFilter, Source,
+    alloc::{String, Vec, borrow::Cow, string::ToString, vec},
+    canvas::{Rect, Transform},
+    imports::{
+        canvas::{Canvas, ImageRef},
+        net::Request,
+        std::send_partial_result,
+    },
+    prelude::*,
 };
 
 mod helpers;
@@ -47,408 +47,408 @@ const CATALOGUE_PAGE_LIMIT: i32 = 40;
 struct Soraraw;
 
 impl Source for Soraraw {
-	fn new() -> Self {
-		Self
-	}
+    fn new() -> Self {
+        Self
+    }
 
-	fn get_search_manga_list(
-		&self,
-		query: Option<String>,
-		page: i32,
-		filters: Vec<FilterValue>,
-	) -> Result<MangaPageResult> {
-		let mut author = None;
-		let mut genre = None;
-		for filter in filters {
-			match filter {
-				// the text field "supportsAuthorSearch" adds to the search filters, which the app
-				// fills in on its own rather than folding the name into the query
-				FilterValue::Text { id, value } if id == "author" && !value.is_empty() => {
-					author = Some(value)
-				}
-				FilterValue::Select { id, value } if id == "genre" && !value.is_empty() => {
-					genre = Some(value)
-				}
-				_ => {}
-			}
-		}
+    fn get_search_manga_list(
+        &self,
+        query: Option<String>,
+        page: i32,
+        filters: Vec<FilterValue>,
+    ) -> Result<MangaPageResult> {
+        let mut author = None;
+        let mut genre = None;
+        for filter in filters {
+            match filter {
+                // the text field "supportsAuthorSearch" adds to the search filters, which the app
+                // fills in on its own rather than folding the name into the query
+                FilterValue::Text { id, value } if id == "author" && !value.is_empty() => {
+                    author = Some(value)
+                }
+                FilterValue::Select { id, value } if id == "genre" && !value.is_empty() => {
+                    genre = Some(value)
+                }
+                _ => {}
+            }
+        }
 
-		// searching walks the whole catalogue, so it can't be combined with the genre filter;
-		// "hidesFiltersWhileSearching" in "source.json" keeps the app from offering them together
-		let (query, author) = (query.as_deref(), author.as_deref());
-		if query.is_some() || author.is_some() {
-			// every match is collected in one go, leaving no page for the app to ask for
-			return Ok(MangaPageResult {
-				entries: Self::search_catalogue(query, author)?,
-				has_next_page: false,
-			});
-		}
+        // searching walks the whole catalogue, so it can't be combined with the genre filter;
+        // "hidesFiltersWhileSearching" in "source.json" keeps the app from offering them together
+        let (query, author) = (query.as_deref(), author.as_deref());
+        if query.is_some() || author.is_some() {
+            // every match is collected in one go, leaving no page for the app to ask for
+            return Ok(MangaPageResult {
+                entries: Self::search_catalogue(query, author)?,
+                has_next_page: false,
+            });
+        }
 
-		let url = match genre {
-			Some(genre) => paginated(&format!("{BASE_URL}/genre/{genre}"), page),
-			None => paginated(&format!("{BASE_URL}/newest"), page),
-		};
-		Self::parse_list(&url)
-	}
+        let url = match genre {
+            Some(genre) => paginated(&format!("{BASE_URL}/genre/{genre}"), page),
+            None => paginated(&format!("{BASE_URL}/newest"), page),
+        };
+        Self::parse_list(&url)
+    }
 
-	fn get_manga_update(
-		&self,
-		mut manga: Manga,
-		needs_details: bool,
-		needs_chapters: bool,
-	) -> Result<Manga> {
-		let url = manga_url(&manga.key);
-		let Some(details) = next_data::<DataProps<MangaData>>(&url)?.data.manga else {
-			bail!("no details for manga {}", manga.key);
-		};
+    fn get_manga_update(
+        &self,
+        mut manga: Manga,
+        needs_details: bool,
+        needs_chapters: bool,
+    ) -> Result<Manga> {
+        let url = manga_url(&manga.key);
+        let Some(details) = next_data::<DataProps<MangaData>>(&url)?.data.manga else {
+            bail!("no details for manga {}", manga.key);
+        };
 
-		if needs_details {
-			manga.title = details.name.trim().into();
-			manga.cover = details.cover();
-			manga.authors = details.authors();
-			manga.description = details.description();
-			manga.url = Some(url);
-			manga.status = status(details.kind.as_deref());
-			manga.viewer = details.viewer();
-			manga.content_rating = content_rating(details.is_adult.as_deref());
+        if needs_details {
+            manga.title = details.name.trim().into();
+            manga.cover = details.cover();
+            manga.authors = details.authors();
+            manga.description = details.description();
+            manga.url = Some(url);
+            manga.status = status(details.kind.as_deref());
+            manga.viewer = details.viewer();
+            manga.content_rating = content_rating(details.is_adult.as_deref());
 
-			let tags = details
-				.genres
-				.into_iter()
-				.filter_map(Genre::into_tag)
-				.collect::<Vec<String>>();
-			manga.tags = (!tags.is_empty()).then_some(tags);
+            let tags = details
+                .genres
+                .into_iter()
+                .filter_map(Genre::into_tag)
+                .collect::<Vec<String>>();
+            manga.tags = (!tags.is_empty()).then_some(tags);
 
-			if needs_chapters {
-				// the chapter list is parsed out of the same response, but every entry costs a
-				// date to parse, so the details are handed over before that starts
-				send_partial_result(&manga);
-			}
-		}
+            if needs_chapters {
+                // the chapter list is parsed out of the same response, but every entry costs a
+                // date to parse, so the details are handed over before that starts
+                send_partial_result(&manga);
+            }
+        }
 
-		if needs_chapters {
-			let manga_id = details.id;
-			let slug = details.slug;
-			let chapters = details
-				.chapters
-				.into_iter()
-				.map(|chapter| chapter.into_chapter(manga_id, &slug))
-				.collect::<Vec<Chapter>>();
-			manga.chapters = Some(chapters);
-		}
+        if needs_chapters {
+            let manga_id = details.id;
+            let slug = details.slug;
+            let chapters = details
+                .chapters
+                .into_iter()
+                .map(|chapter| chapter.into_chapter(manga_id, &slug))
+                .collect::<Vec<Chapter>>();
+            manga.chapters = Some(chapters);
+        }
 
-		Ok(manga)
-	}
+        Ok(manga)
+    }
 
-	fn get_page_list(&self, _manga: Manga, chapter: Chapter) -> Result<Vec<Page>> {
-		let Some((manga_id, chapter_id)) = chapter.key.split_once('/') else {
-			bail!("malformed chapter key {}", chapter.key);
-		};
-		let Ok(chapter_id) = chapter_id.parse::<i64>() else {
-			bail!("malformed chapter key {}", chapter.key);
-		};
+    fn get_page_list(&self, _manga: Manga, chapter: Chapter) -> Result<Vec<Page>> {
+        let Some((manga_id, chapter_id)) = chapter.key.split_once('/') else {
+            bail!("malformed chapter key {}", chapter.key);
+        };
+        let Ok(chapter_id) = chapter_id.parse::<i64>() else {
+            bail!("malformed chapter key {}", chapter.key);
+        };
 
-		// the page list holds the paths of the images encrypted, and the key to them lives on the
-		// chapter page rather than alongside the list
-		let Some(url) = chapter.url.as_deref() else {
-			bail!("no url to read the image key of chapter {chapter_id} from");
-		};
-		let Some(details) = next_data::<DataProps<ChapterData>>(url)?.data.chapter else {
-			bail!("no chapter data at {url}");
-		};
-		let (Some(uuid), Some(host)) = (details.uuid, details.base) else {
-			bail!("chapter {chapter_id} hands out no image key");
-		};
-		let scrambled = details.mode.as_deref() == Some("canva2");
+        // the page list holds the paths of the images encrypted, and the key to them lives on the
+        // chapter page rather than alongside the list
+        let Some(url) = chapter.url.as_deref() else {
+            bail!("no url to read the image key of chapter {chapter_id} from");
+        };
+        let Some(details) = next_data::<DataProps<ChapterData>>(url)?.data.chapter else {
+            bail!("no chapter data at {url}");
+        };
+        let (Some(uuid), Some(host)) = (details.uuid, details.base) else {
+            bail!("chapter {chapter_id} hands out no image key");
+        };
+        let scrambled = details.mode.as_deref() == Some("canva2");
 
-		let payload = Request::get(format!("{IMAGE_API_URL}/{manga_id}/{chapter_id}.json"))?
-			.json_owned::<ImagePayload>()?;
-		let Some(json) = deobfuscate(&payload.d, PAYLOAD_KEY) else {
-			bail!("could not decode the page list of chapter {chapter_id}");
-		};
-		let images = serde_json::from_str::<Vec<PageImage>>(&json)
-			.map_err(|error| error!("unexpected page list for chapter {chapter_id}: {error}"))?;
+        let payload = Request::get(format!("{IMAGE_API_URL}/{manga_id}/{chapter_id}.json"))?
+            .json_owned::<ImagePayload>()?;
+        let Some(json) = deobfuscate(&payload.d, PAYLOAD_KEY) else {
+            bail!("could not decode the page list of chapter {chapter_id}");
+        };
+        let images = serde_json::from_str::<Vec<PageImage>>(&json)
+            .map_err(|error| error!("unexpected page list for chapter {chapter_id}: {error}"))?;
 
-		let mut urls = Vec::with_capacity(images.len());
-		for image in images {
-			// a page that can't be placed or decrypted is not skipped: the chapter would read as
-			// complete while missing a page, which nothing downstream could tell apart
-			let (Some(order), Some(path)) = (
-				image.order.as_f32(),
-				decrypt_path(&image.b, &uuid, PATH_SECRET),
-			) else {
-				bail!("could not read a page of chapter {chapter_id}");
-			};
-			urls.push((order, format!("{host}/{path}")));
-		}
-		if urls.is_empty() {
-			// an empty list is indistinguishable from a failed request once it reaches the app
-			bail!("no pages returned for chapter {chapter_id}");
-		}
-		// the endpoint returns them in order, but the site sorts them anyway before reading. some
-		// chapters number an inserted page as a fraction, so the order can't be taken as an integer
-		urls.sort_by(|(left, _), (right, _)| left.total_cmp(right));
+        let mut urls = Vec::with_capacity(images.len());
+        for image in images {
+            // a page that can't be placed or decrypted is not skipped: the chapter would read as
+            // complete while missing a page, which nothing downstream could tell apart
+            let (Some(order), Some(path)) = (
+                image.order.as_f32(),
+                decrypt_path(&image.b, &uuid, PATH_SECRET),
+            ) else {
+                bail!("could not read a page of chapter {chapter_id}");
+            };
+            urls.push((order, format!("{host}/{path}")));
+        }
+        if urls.is_empty() {
+            // an empty list is indistinguishable from a failed request once it reaches the app
+            bail!("no pages returned for chapter {chapter_id}");
+        }
+        // the endpoint returns them in order, but the site sorts them anyway before reading. some
+        // chapters number an inserted page as a fraction, so the order can't be taken as an integer
+        urls.sort_by(|(left, _), (right, _)| left.total_cmp(right));
 
-		// a chapter holding few enough images to be a strip gets measured before it's handed over:
-		// some of them stack every page into one image, which the reader is handed a slice at a time
-		let measure = urls.len() <= STRIP_IMAGE_LIMIT;
-		let mut pages = Vec::with_capacity(urls.len());
-		for (_, url) in urls {
-			// the tile plan covers the whole image, so these can't be sliced
-			if scrambled {
-				let mut context = PageContext::new();
-				context.insert(String::from("seed"), chapter_id.to_string());
-				pages.push(Page {
-					content: PageContent::url_context(url, context),
-					..Default::default()
-				});
-				continue;
-			}
-			let slices = if measure { stacked_page_count(&url) } else { 1 };
-			if slices < 2 {
-				pages.push(Page {
-					content: PageContent::url(url),
-					..Default::default()
-				});
-				continue;
-			}
-			for slice in 0..slices {
-				let mut context = PageContext::new();
-				context.insert(String::from("slice"), slice.to_string());
-				context.insert(String::from("slices"), slices.to_string());
-				pages.push(Page {
-					content: PageContent::url_context(url.clone(), context),
-					..Default::default()
-				});
-			}
-		}
+        // a chapter holding few enough images to be a strip gets measured before it's handed over:
+        // some of them stack every page into one image, which the reader is handed a slice at a time
+        let measure = urls.len() <= STRIP_IMAGE_LIMIT;
+        let mut pages = Vec::with_capacity(urls.len());
+        for (_, url) in urls {
+            // the tile plan covers the whole image, so these can't be sliced
+            if scrambled {
+                let mut context = PageContext::new();
+                context.insert(String::from("seed"), chapter_id.to_string());
+                pages.push(Page {
+                    content: PageContent::url_context(url, context),
+                    ..Default::default()
+                });
+                continue;
+            }
+            let slices = if measure { stacked_page_count(&url) } else { 1 };
+            if slices < 2 {
+                pages.push(Page {
+                    content: PageContent::url(url),
+                    ..Default::default()
+                });
+                continue;
+            }
+            for slice in 0..slices {
+                let mut context = PageContext::new();
+                context.insert(String::from("slice"), slice.to_string());
+                context.insert(String::from("slices"), slices.to_string());
+                pages.push(Page {
+                    content: PageContent::url_context(url.clone(), context),
+                    ..Default::default()
+                });
+            }
+        }
 
-		Ok(pages)
-	}
+        Ok(pages)
+    }
 }
 
 impl Soraraw {
-	// nothing on the site can be queried: "/search?q=" is statically generated and renders a fixed
-	// batch, the api host answers 500 for every query (`Unknown column 'Manga.number_views' in
-	// 'ORDER BY'`), and its "/mangas" ignores every parameter tried. that leaves walking the dump
-	// the browser filters itself, 13 pages of 2000 entries and about 4.7 MB gzipped
-	fn search_catalogue(query: Option<&str>, author: Option<&str>) -> Result<Vec<Manga>> {
-		let mut entries = Vec::new();
+    // nothing on the site can be queried: "/search?q=" is statically generated and renders a fixed
+    // batch, the api host answers 500 for every query (`Unknown column 'Manga.number_views' in
+    // 'ORDER BY'`), and its "/mangas" ignores every parameter tried. that leaves walking the dump
+    // the browser filters itself, 13 pages of 2000 entries and about 4.7 MB gzipped
+    fn search_catalogue(query: Option<&str>, author: Option<&str>) -> Result<Vec<Manga>> {
+        let mut entries = Vec::new();
 
-		for page in 1..=CATALOGUE_PAGE_LIMIT {
-			let response = Request::get(format!("{BASE_URL}/mangas_{page}.json"))?.send()?;
-			// the dump ends with a 404, which is how the site's own search stops walking it
-			if response.status_code() != 200 {
-				// the first page is the exception: with nothing walked yet, a dump that can't be
-				// reached hands back the empty result of a query that matched nothing
-				if page == 1 {
-					bail!(
-						"the catalogue is unreachable: page 1 answered {}",
-						response.status_code()
-					);
-				}
-				break;
-			}
-			let Ok(catalogue) = response.get_json_owned::<CataloguePage>() else {
-				// a page that stopped being json leaves the matches collected before it worth
-				// returning, except on the first page, which leaves none
-				if page == 1 {
-					bail!("could not read catalogue page 1");
-				}
-				break;
-			};
+        for page in 1..=CATALOGUE_PAGE_LIMIT {
+            let response = Request::get(format!("{BASE_URL}/mangas_{page}.json"))?.send()?;
+            // the dump ends with a 404, which is how the site's own search stops walking it
+            if response.status_code() != 200 {
+                // the first page is the exception: with nothing walked yet, a dump that can't be
+                // reached hands back the empty result of a query that matched nothing
+                if page == 1 {
+                    bail!(
+                        "the catalogue is unreachable: page 1 answered {}",
+                        response.status_code()
+                    );
+                }
+                break;
+            }
+            let Ok(catalogue) = response.get_json_owned::<CataloguePage>() else {
+                // a page that stopped being json leaves the matches collected before it worth
+                // returning, except on the first page, which leaves none
+                if page == 1 {
+                    bail!("could not read catalogue page 1");
+                }
+                break;
+            };
 
-			for entry in catalogue.list {
-				let matched = query.is_none_or(|query| entry.matches(query))
-					&& author.is_none_or(|author| entry.matches_author(author));
-				if !matched {
-					continue;
-				}
-				entries.push(Manga::from(entry));
-				if entries.len() >= SEARCH_RESULT_LIMIT {
-					return Ok(entries);
-				}
-			}
-		}
+            for entry in catalogue.list {
+                let matched = query.is_none_or(|query| entry.matches(query))
+                    && author.is_none_or(|author| entry.matches_author(author));
+                if !matched {
+                    continue;
+                }
+                entries.push(Manga::from(entry));
+                if entries.len() >= SEARCH_RESULT_LIMIT {
+                    return Ok(entries);
+                }
+            }
+        }
 
-		Ok(entries)
-	}
+        Ok(entries)
+    }
 
-	fn parse_list(url: &str) -> Result<MangaPageResult> {
-		let data = next_data::<DataProps<ListData>>(url)?.data;
-		Ok(MangaPageResult {
-			has_next_page: data
-				.pagination
-				.is_some_and(|pagination| pagination.has_next_page()),
-			entries: data.results.into_iter().map(Manga::from).collect(),
-		})
-	}
+    fn parse_list(url: &str) -> Result<MangaPageResult> {
+        let data = next_data::<DataProps<ListData>>(url)?.data;
+        Ok(MangaPageResult {
+            has_next_page: data
+                .pagination
+                .is_some_and(|pagination| pagination.has_next_page()),
+            entries: data.results.into_iter().map(Manga::from).collect(),
+        })
+    }
 
-	// a ranking arrives as one json holding every entry, leaving no page for the app to ask for
-	fn parse_top(period: &str) -> Result<MangaPageResult> {
-		let top = Request::get(format!("{BASE_URL}/top/{period}.json"))?.json_owned::<TopList>()?;
-		if top.mangas.is_empty() {
-			bail!("the {period} ranking came back empty");
-		}
-		Ok(MangaPageResult {
-			entries: top.mangas.into_iter().map(Manga::from).collect(),
-			has_next_page: false,
-		})
-	}
+    // a ranking arrives as one json holding every entry, leaving no page for the app to ask for
+    fn parse_top(period: &str) -> Result<MangaPageResult> {
+        let top = Request::get(format!("{BASE_URL}/top/{period}.json"))?.json_owned::<TopList>()?;
+        if top.mangas.is_empty() {
+            bail!("the {period} ranking came back empty");
+        }
+        Ok(MangaPageResult {
+            entries: top.mangas.into_iter().map(Manga::from).collect(),
+            has_next_page: false,
+        })
+    }
 
-	fn unscramble(image: &ImageRef, seed: &str) -> Option<ImageRef> {
-		let (width, height) = (image.width(), image.height());
-		let tiles = scramble_plan(width as u32, height as u32, seed)?;
+    fn unscramble(image: &ImageRef, seed: &str) -> Option<ImageRef> {
+        let (width, height) = (image.width(), image.height());
+        let tiles = scramble_plan(width as u32, height as u32, seed)?;
 
-		// only a bare rotation is set: the app applies a translation in a different order than the
-		// sdk splits it out for, so tiles are placed through the dst rect instead
-		let mut canvas = Canvas::new(width, height);
-		for turns in 0..4 {
-			match turns {
-				1 => canvas.set_transform(&Transform::new(0.0, -1.0, 1.0, 0.0, 0.0, 0.0)),
-				2 => canvas.set_transform(&Transform::new(-1.0, 0.0, 0.0, -1.0, 0.0, 0.0)),
-				3 => canvas.set_transform(&Transform::new(0.0, 1.0, -1.0, 0.0, 0.0, 0.0)),
-				_ => {}
-			}
-			for tile in tiles.iter().filter(|tile| tile.turns == turns) {
-				let source = &tiles[tile.source];
-				let (x, y) = (tile.x as f32, tile.y as f32);
-				let (width, height) = (tile.width as f32, tile.height as f32);
-				let (dst_x, dst_y) = match turns {
-					1 => (-(y + height), x),
-					2 => (-(x + width), -(y + height)),
-					3 => (y, -(x + width)),
-					_ => (x, y),
-				};
-				canvas.copy_image(
-					image,
-					Rect::new(source.x as f32, source.y as f32, width, height),
-					Rect::new(dst_x, dst_y, width, height),
-				);
-			}
-		}
-		Some(canvas.get_image())
-	}
+        // only a bare rotation is set: the app applies a translation in a different order than the
+        // sdk splits it out for, so tiles are placed through the dst rect instead
+        let mut canvas = Canvas::new(width, height);
+        for turns in 0..4 {
+            match turns {
+                1 => canvas.set_transform(&Transform::new(0.0, -1.0, 1.0, 0.0, 0.0, 0.0)),
+                2 => canvas.set_transform(&Transform::new(-1.0, 0.0, 0.0, -1.0, 0.0, 0.0)),
+                3 => canvas.set_transform(&Transform::new(0.0, 1.0, -1.0, 0.0, 0.0, 0.0)),
+                _ => {}
+            }
+            for tile in tiles.iter().filter(|tile| tile.turns == turns) {
+                let source = &tiles[tile.source];
+                let (x, y) = (tile.x as f32, tile.y as f32);
+                let (width, height) = (tile.width as f32, tile.height as f32);
+                let (dst_x, dst_y) = match turns {
+                    1 => (-(y + height), x),
+                    2 => (-(x + width), -(y + height)),
+                    3 => (y, -(x + width)),
+                    _ => (x, y),
+                };
+                canvas.copy_image(
+                    image,
+                    Rect::new(source.x as f32, source.y as f32, width, height),
+                    Rect::new(dst_x, dst_y, width, height),
+                );
+            }
+        }
+        Some(canvas.get_image())
+    }
 }
 
 impl PageImageProcessor for Soraraw {
-	fn process_page_image(
-		&self,
-		response: ImageResponse,
-		context: Option<PageContext>,
-	) -> Result<ImageRef> {
-		let Some(context) = context else {
-			return Ok(response.image);
-		};
-		if let Some(seed) = context.get("seed") {
-			return Ok(Self::unscramble(&response.image, seed).unwrap_or(response.image));
-		}
-		let number = |key: &str| context.get(key).and_then(|value| value.parse::<u32>().ok());
-		let (Some(slice), Some(slices)) = (number("slice"), number("slices")) else {
-			return Ok(response.image);
-		};
-		if slices < 2 || slice >= slices {
-			return Ok(response.image);
-		}
+    fn process_page_image(
+        &self,
+        response: ImageResponse,
+        context: Option<PageContext>,
+    ) -> Result<ImageRef> {
+        let Some(context) = context else {
+            return Ok(response.image);
+        };
+        if let Some(seed) = context.get("seed") {
+            return Ok(Self::unscramble(&response.image, seed).unwrap_or(response.image));
+        }
+        let number = |key: &str| context.get(key).and_then(|value| value.parse::<u32>().ok());
+        let (Some(slice), Some(slices)) = (number("slice"), number("slices")) else {
+            return Ok(response.image);
+        };
+        if slices < 2 || slice >= slices {
+            return Ok(response.image);
+        }
 
-		let width = response.image.width();
-		let height = response.image.height() as u32;
-		// whole pixel rows: the app's crop rounds a fractional rect, which would draw a row twice
-		// or drop it at the boundary between two slices
-		let top = height * slice / slices;
-		let bottom = height * (slice + 1) / slices;
-		let (top, slice_height) = (top as f32, (bottom - top) as f32);
+        let width = response.image.width();
+        let height = response.image.height() as u32;
+        // whole pixel rows: the app's crop rounds a fractional rect, which would draw a row twice
+        // or drop it at the boundary between two slices
+        let top = height * slice / slices;
+        let bottom = height * (slice + 1) / slices;
+        let (top, slice_height) = (top as f32, (bottom - top) as f32);
 
-		// the canvas has to match the slice: app versions before the AidokuRunner fix in e44d774
-		// placed the destination rect off any canvas shorter than the image, drawing nothing
-		let mut canvas = Canvas::new(width, slice_height);
-		canvas.copy_image(
-			&response.image,
-			Rect::new(0.0, top, width, slice_height),
-			Rect::new(0.0, 0.0, width, slice_height),
-		);
-		Ok(canvas.get_image())
-	}
+        // the canvas has to match the slice: app versions before the AidokuRunner fix in e44d774
+        // placed the destination rect off any canvas shorter than the image, drawing nothing
+        let mut canvas = Canvas::new(width, slice_height);
+        canvas.copy_image(
+            &response.image,
+            Rect::new(0.0, top, width, slice_height),
+            Rect::new(0.0, 0.0, width, slice_height),
+        );
+        Ok(canvas.get_image())
+    }
 }
 
 impl ListingProvider for Soraraw {
-	fn get_manga_list(&self, listing: Listing, page: i32) -> Result<MangaPageResult> {
-		match listing.id.as_str() {
-			"rising" => Self::parse_top("rising"),
-			// the id is kept from before the rankings were split by period
-			"trending" => Self::parse_top("last30Days"),
-			"lifetime" => Self::parse_top("lifetime"),
-			_ => Self::parse_list(&paginated(&format!("{BASE_URL}/newest"), page)),
-		}
-	}
+    fn get_manga_list(&self, listing: Listing, page: i32) -> Result<MangaPageResult> {
+        match listing.id.as_str() {
+            "rising" => Self::parse_top("rising"),
+            // the id is kept from before the rankings were split by period
+            "trending" => Self::parse_top("last30Days"),
+            "lifetime" => Self::parse_top("lifetime"),
+            _ => Self::parse_list(&paginated(&format!("{BASE_URL}/newest"), page)),
+        }
+    }
 }
 
 impl DynamicFilters for Soraraw {
-	// the genre list is fetched instead of hardcoded, so new genres are picked up automatically
-	fn get_dynamic_filters(&self) -> Result<Vec<Filter>> {
-		let genres =
-			Request::get(format!("{BASE_URL}/genres.json"))?.json_owned::<Vec<GenreEntry>>()?;
+    // the genre list is fetched instead of hardcoded, so new genres are picked up automatically
+    fn get_dynamic_filters(&self) -> Result<Vec<Filter>> {
+        let genres =
+            Request::get(format!("{BASE_URL}/genres.json"))?.json_owned::<Vec<GenreEntry>>()?;
 
-		let mut options: Vec<Cow<'static, str>> = vec![Cow::Borrowed("All")];
-		let mut ids: Vec<Cow<'static, str>> = vec![Cow::Borrowed("")];
-		for genre in genres.into_iter().take(GENRE_LIMIT) {
-			if genre.slug.is_empty() || genre.name.trim().is_empty() {
-				continue;
-			}
-			options.push(String::from(genre.name.trim()).into());
-			ids.push(genre.slug.into());
-		}
+        let mut options: Vec<Cow<'static, str>> = vec![Cow::Borrowed("All")];
+        let mut ids: Vec<Cow<'static, str>> = vec![Cow::Borrowed("")];
+        for genre in genres.into_iter().take(GENRE_LIMIT) {
+            if genre.slug.is_empty() || genre.name.trim().is_empty() {
+                continue;
+            }
+            options.push(String::from(genre.name.trim()).into());
+            ids.push(genre.slug.into());
+        }
 
-		Ok(vec![
-			SelectFilter {
-				id: "genre".into(),
-				title: Some("Genre".into()),
-				is_genre: true,
-				options,
-				ids: Some(ids),
-				..Default::default()
-			}
-			.into(),
-		])
-	}
+        Ok(vec![
+            SelectFilter {
+                id: "genre".into(),
+                title: Some("Genre".into()),
+                is_genre: true,
+                options,
+                ids: Some(ids),
+                ..Default::default()
+            }
+            .into(),
+        ])
+    }
 }
 
 impl DeepLinkHandler for Soraraw {
-	fn handle_deep_link(&self, url: String) -> Result<Option<DeepLinkResult>> {
-		let Some(path) = url.strip_prefix(BASE_URL) else {
-			return Ok(None);
-		};
-		// shared links can carry a query string or a fragment
-		let path = path.split(['?', '#']).next().unwrap_or_default();
-		let segments = path
-			.split('/')
-			.filter(|segment| !segment.is_empty())
-			.collect::<Vec<&str>>();
+    fn handle_deep_link(&self, url: String) -> Result<Option<DeepLinkResult>> {
+        let Some(path) = url.strip_prefix(BASE_URL) else {
+            return Ok(None);
+        };
+        // shared links can carry a query string or a fragment
+        let path = path.split(['?', '#']).next().unwrap_or_default();
+        let segments = path
+            .split('/')
+            .filter(|segment| !segment.is_empty())
+            .collect::<Vec<&str>>();
 
-		Ok(match segments.as_slice() {
-			// https://soraraw.com/manga/majo-to-youhei-57539
-			["manga", slug] => Some(DeepLinkResult::Manga {
-				key: String::from(*slug),
-			}),
-			// https://soraraw.com/manga/majo-to-youhei-57539/ch-74-2
-			//
-			// chapter keys hold ids that the url doesn't, so the page has to be read to build one
-			["manga", slug, _] => {
-				let data = next_data::<DataProps<ChapterData>>(&format!("{BASE_URL}{path}"))?;
-				data.data.chapter.map(|chapter| DeepLinkResult::Chapter {
-					manga_key: String::from(*slug),
-					key: chapter_key(chapter.manga_id, chapter.id),
-				})
-			}
-			_ => None,
-		})
-	}
+        Ok(match segments.as_slice() {
+            // https://soraraw.com/manga/majo-to-youhei-57539
+            ["manga", slug] => Some(DeepLinkResult::Manga {
+                key: String::from(*slug),
+            }),
+            // https://soraraw.com/manga/majo-to-youhei-57539/ch-74-2
+            //
+            // chapter keys hold ids that the url doesn't, so the page has to be read to build one
+            ["manga", slug, _] => {
+                let data = next_data::<DataProps<ChapterData>>(&format!("{BASE_URL}{path}"))?;
+                data.data.chapter.map(|chapter| DeepLinkResult::Chapter {
+                    manga_key: String::from(*slug),
+                    key: chapter_key(chapter.manga_id, chapter.id),
+                })
+            }
+            _ => None,
+        })
+    }
 }
 
 register_source!(
-	Soraraw,
-	ListingProvider,
-	DynamicFilters,
-	DeepLinkHandler,
-	PageImageProcessor
+    Soraraw,
+    ListingProvider,
+    DynamicFilters,
+    DeepLinkHandler,
+    PageImageProcessor
 );

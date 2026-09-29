@@ -4,82 +4,82 @@ pub mod search;
 
 use crate::net::Url;
 use aes::{
-	Aes128,
-	cipher::{BlockModeDecrypt as _, KeyIvInit as _, block_padding::Pkcs7},
+    Aes128,
+    cipher::{BlockModeDecrypt as _, KeyIvInit as _, block_padding::Pkcs7},
 };
 use aidoku::{
-	AidokuError, Manga, MangaStatus, Result,
-	alloc::{String, Vec},
-	error,
-	serde::Deserialize,
+    AidokuError, Manga, MangaStatus, Result,
+    alloc::{String, Vec},
+    error,
+    serde::Deserialize,
 };
 
 #[derive(Deserialize)]
 pub struct MangaItem {
-	path_word: String,
-	name: String,
-	cover: String,
-	status: Option<u8>,
-	author: Vec<Author>,
+    path_word: String,
+    name: String,
+    cover: String,
+    status: Option<u8>,
+    author: Vec<Author>,
 }
 
 impl From<MangaItem> for Manga {
-	fn from(item: MangaItem) -> Self {
-		let url = Url::manga(&item.path_word).to_string().ok();
+    fn from(item: MangaItem) -> Self {
+        let url = Url::manga(&item.path_word).to_string().ok();
 
-		let key = item.path_word;
+        let key = item.path_word;
 
-		let title = item.name;
+        let title = item.name;
 
-		let cover = item.cover.replace(".328x422.jpg", "");
+        let cover = item.cover.replace(".328x422.jpg", "");
 
-		let authors = item.author.into_iter().map(|author| author.name).collect();
+        let authors = item.author.into_iter().map(|author| author.name).collect();
 
-		let status = match item.status {
-			Some(0) => MangaStatus::Ongoing,
-			Some(1 | 2) => MangaStatus::Completed,
-			_ => MangaStatus::Unknown,
-		};
+        let status = match item.status {
+            Some(0) => MangaStatus::Ongoing,
+            Some(1 | 2) => MangaStatus::Completed,
+            _ => MangaStatus::Unknown,
+        };
 
-		Self {
-			key,
-			title,
-			cover: Some(cover),
-			authors: Some(authors),
-			url,
-			status,
-			..Default::default()
-		}
-	}
+        Self {
+            key,
+            title,
+            cover: Some(cover),
+            authors: Some(authors),
+            url,
+            status,
+            ..Default::default()
+        }
+    }
 }
 
 #[derive(Deserialize)]
 struct Author {
-	name: String,
+    name: String,
 }
 
 pub trait EncryptedJson {
-	fn decrypt(&self, key: &str) -> Result<Vec<u8>>;
+    fn decrypt(&self, key: &str) -> Result<Vec<u8>>;
 }
 
 impl<S: AsRef<str>> EncryptedJson for S {
-	fn decrypt(&self, key: &str) -> Result<Vec<u8>> {
-		let data = self.as_ref();
-		let iv = data
-			.get(..16)
-			.ok_or_else(|| error!("Expected 16 bytes for IV"))?
-			.as_bytes();
+    fn decrypt(&self, key: &str) -> Result<Vec<u8>> {
+        let data = self.as_ref();
+        let iv = data
+            .get(..16)
+            .ok_or_else(|| error!("Expected 16 bytes for IV"))?
+            .as_bytes();
 
-		let encoded_cipher_text = data
-			.get(16..)
-			.ok_or_else(|| error!("No data found after IV"))?;
-		let mut cipher_text = hex::decode(encoded_cipher_text).map_err(AidokuError::message)?;
+        let encoded_cipher_text = data
+            .get(16..)
+            .ok_or_else(|| error!("No data found after IV"))?;
+        let mut cipher_text = hex::decode(encoded_cipher_text).map_err(AidokuError::message)?;
 
-		let plain_text = cbc::Decryptor::<Aes128>::new_from_slices(key.as_bytes(), iv)
-			.map_err(AidokuError::message)?
-			.decrypt_padded::<Pkcs7>(&mut cipher_text)
-			.map_err(AidokuError::message)?
-			.into();
-		Ok(plain_text)
-	}
+        let plain_text = cbc::Decryptor::<Aes128>::new_from_slices(key.as_bytes(), iv)
+            .map_err(AidokuError::message)?
+            .decrypt_padded::<Pkcs7>(&mut cipher_text)
+            .map_err(AidokuError::message)?
+            .into();
+        Ok(plain_text)
+    }
 }

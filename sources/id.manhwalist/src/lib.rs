@@ -7,21 +7,21 @@ const BASE_URL: &str = "https://manhwalist02.site";
 struct Manhwalist;
 
 impl Impl for Manhwalist {
-	fn new() -> Self {
-		Self
-	}
+    fn new() -> Self {
+        Self
+    }
 
-	fn params(&self) -> Params {
-		Params {
-			base_url: BASE_URL.into(),
-			..Default::default()
-		}
-	}
+    fn params(&self) -> Params {
+        Params {
+            base_url: BASE_URL.into(),
+            ..Default::default()
+        }
+    }
 }
 
 register_source!(
-	MangaThemesia<Manhwalist>,
-	Home,
-	ImageRequestProvider,
-	DeepLinkHandler
+    MangaThemesia<Manhwalist>,
+    Home,
+    ImageRequestProvider,
+    DeepLinkHandler
 );

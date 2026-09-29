@@ -1,5 +1,5 @@
 #![no_std]
-use aidoku::{prelude::*, Source};
+use aidoku::{Source, prelude::*};
 use liliana::{Impl, Liliana, Params};
 
 const BASE_URL: &str = "https://manga.io.vn";
@@ -7,22 +7,22 @@ const BASE_URL: &str = "https://manga.io.vn";
 struct DocTruyen5s;
 
 impl Impl for DocTruyen5s {
-	fn new() -> Self {
-		Self
-	}
+    fn new() -> Self {
+        Self
+    }
 
-	fn params(&self) -> Params {
-		Params {
-			base_url: BASE_URL.into(),
-			..Default::default()
-		}
-	}
+    fn params(&self) -> Params {
+        Params {
+            base_url: BASE_URL.into(),
+            ..Default::default()
+        }
+    }
 }
 
 register_source!(
-	Liliana<DocTruyen5s>,
-	ListingProvider,
-	Home,
-	ImageRequestProvider,
-	DeepLinkHandler
+    Liliana<DocTruyen5s>,
+    ListingProvider,
+    Home,
+    ImageRequestProvider,
+    DeepLinkHandler
 );

@@ -1,8 +1,8 @@
 use aidoku::{
-	Result,
-	alloc::{String, Vec},
-	imports::{defaults::defaults_get_map, net::Request},
-	prelude::*,
+    Result,
+    alloc::{String, Vec},
+    imports::{defaults::defaults_get_map, net::Request},
+    prelude::*,
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
@@ -10,56 +10,56 @@ use crate::{API_URL, AUTH_KEY, BASE_URL, Senkuro, USER_AGENT};
 
 #[derive(Serialize)]
 pub(crate) struct GraphqlEnvelope<'a, V: Serialize> {
-	pub(crate) query: &'a str,
-	pub(crate) variables: V,
+    pub(crate) query: &'a str,
+    pub(crate) variables: V,
 }
 
 #[derive(Deserialize)]
 pub(crate) struct GraphqlError {
-	pub(crate) message: String,
+    pub(crate) message: String,
 }
 
 #[derive(Deserialize)]
 pub(crate) struct GraphqlResponse<T> {
-	pub(crate) data: Option<T>,
-	pub(crate) errors: Option<Vec<GraphqlError>>,
+    pub(crate) data: Option<T>,
+    pub(crate) errors: Option<Vec<GraphqlError>>,
 }
 
 #[derive(Serialize)]
 pub(crate) struct SearchVariables<'a> {
-	pub(crate) query: &'a str,
-	#[serde(rename = "type")]
-	pub(crate) search_type: &'a str,
+    pub(crate) query: &'a str,
+    #[serde(rename = "type")]
+    pub(crate) search_type: &'a str,
 }
 
 #[derive(Serialize)]
 pub(crate) struct SlugVariables<'a> {
-	pub(crate) slug: &'a str,
+    pub(crate) slug: &'a str,
 }
 
 #[derive(Serialize)]
 pub(crate) struct OrderBy<'a> {
-	pub(crate) field: &'a str,
-	pub(crate) direction: &'a str,
+    pub(crate) field: &'a str,
+    pub(crate) direction: &'a str,
 }
 
 #[derive(Serialize)]
 pub(crate) struct ChaptersVariables<'a> {
-	pub(crate) branch_id: &'a str,
-	pub(crate) number: Option<f32>,
-	pub(crate) after: Option<&'a str>,
-	pub(crate) order_by: OrderBy<'a>,
+    pub(crate) branch_id: &'a str,
+    pub(crate) number: Option<f32>,
+    pub(crate) after: Option<&'a str>,
+    pub(crate) order_by: OrderBy<'a>,
 }
 
 #[derive(Serialize)]
 pub(crate) struct ReaderVariables<'a> {
-	pub(crate) slug: &'a str,
-	pub(crate) cdn_quality: &'a str,
+    pub(crate) slug: &'a str,
+    pub(crate) cdn_quality: &'a str,
 }
 
 #[derive(Serialize)]
 pub(crate) struct HomeVariables<'a> {
-	pub(crate) after: Option<&'a str>,
+    pub(crate) after: Option<&'a str>,
 }
 
 pub(crate) const SEARCH_QUERY: &str = r#"query Search($query: String!, $type: SearchType!) {
@@ -159,54 +159,54 @@ pub(crate) const READER_QUERY: &str = r#"query Reader($slug: String!, $cdn_quali
 }"#;
 
 impl Senkuro {
-	fn cookies(&self) -> String {
-		let Some(cookies) = defaults_get_map(AUTH_KEY) else {
-			return String::new();
-		};
+    fn cookies(&self) -> String {
+        let Some(cookies) = defaults_get_map(AUTH_KEY) else {
+            return String::new();
+        };
 
-		let mut header = String::new();
-		for (name, value) in cookies.iter() {
-			if !header.is_empty() {
-				header.push_str("; ");
-			}
-			header.push_str(name);
-			header.push('=');
-			header.push_str(value);
-		}
-		header
-	}
+        let mut header = String::new();
+        for (name, value) in cookies.iter() {
+            if !header.is_empty() {
+                header.push_str("; ");
+            }
+            header.push_str(name);
+            header.push('=');
+            header.push_str(value);
+        }
+        header
+    }
 
-	pub(crate) fn graphql<T, V>(&self, query: &str, variables: V) -> Result<T>
-	where
-		T: DeserializeOwned,
-		V: Serialize,
-	{
-		let body = serde_json::to_string(&GraphqlEnvelope { query, variables })
-			.map_err(|_| error!("Senkuro: не удалось собрать GraphQL-запрос"))?;
+    pub(crate) fn graphql<T, V>(&self, query: &str, variables: V) -> Result<T>
+    where
+        T: DeserializeOwned,
+        V: Serialize,
+    {
+        let body = serde_json::to_string(&GraphqlEnvelope { query, variables })
+            .map_err(|_| error!("Senkuro: не удалось собрать GraphQL-запрос"))?;
 
-		let cookie = self.cookies();
-		let mut request = Request::post(API_URL)?
-			.header("Content-Type", "application/json")
-			.header("Accept", "application/json")
-			.header("Origin", BASE_URL)
-			.header("Referer", BASE_URL)
-			.header("User-Agent", USER_AGENT);
-		if !cookie.is_empty() {
-			request = request.header("Cookie", &cookie);
-		}
+        let cookie = self.cookies();
+        let mut request = Request::post(API_URL)?
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json")
+            .header("Origin", BASE_URL)
+            .header("Referer", BASE_URL)
+            .header("User-Agent", USER_AGENT);
+        if !cookie.is_empty() {
+            request = request.header("Cookie", &cookie);
+        }
 
-		let response = request.body(body).send()?;
-		if response.status_code() >= 400 {
-			return Err(error!("Senkuro API: HTTP ошибка"));
-		}
+        let response = request.body(body).send()?;
+        if response.status_code() >= 400 {
+            return Err(error!("Senkuro API: HTTP ошибка"));
+        }
 
-		let envelope = response.get_json_owned::<GraphqlResponse<T>>()?;
-		if let Some(error) = envelope.errors.and_then(|mut errors| errors.pop()) {
-			bail!("Senkuro API: {}", error.message);
-		}
+        let envelope = response.get_json_owned::<GraphqlResponse<T>>()?;
+        if let Some(error) = envelope.errors.and_then(|mut errors| errors.pop()) {
+            bail!("Senkuro API: {}", error.message);
+        }
 
-		envelope
-			.data
-			.ok_or_else(|| error!("Senkuro API: пустой ответ"))
-	}
+        envelope
+            .data
+            .ok_or_else(|| error!("Senkuro API: пустой ответ"))
+    }
 }

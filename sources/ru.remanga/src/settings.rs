@@ -15,26 +15,26 @@ pub const USER_AGENT: &str = "Mozilla/5.0 (compatible; Aidoku)";
 
 /// When enabled, locked chapters show price / free-from date in the title.
 pub fn show_paid_info() -> bool {
-	defaults_get::<bool>(SHOW_PAID_INFO_KEY).unwrap_or(true)
+    defaults_get::<bool>(SHOW_PAID_INFO_KEY).unwrap_or(true)
 }
 
 /// Prefer secondary (usually EN) title when present.
 pub fn english_titles() -> bool {
-	defaults_get::<bool>(ENGLISH_TITLES_KEY).unwrap_or(false)
+    defaults_get::<bool>(ENGLISH_TITLES_KEY).unwrap_or(false)
 }
 
 /// Manual Bearer token from settings (fallback when WebView login fails).
 pub fn settings_access_token() -> Option<String> {
-	defaults_get::<String>(ACCESS_TOKEN_SETTING_KEY).filter(|s| !s.trim().is_empty())
+    defaults_get::<String>(ACCESS_TOKEN_SETTING_KEY).filter(|s| !s.trim().is_empty())
 }
 
 /// Turns a relative media path into an absolute Remanga URL.
 pub fn media_url(path: &str) -> String {
-	if path.starts_with("http://") || path.starts_with("https://") {
-		path.into()
-	} else if path.starts_with('/') {
-		format!("{SITE_URL}{path}")
-	} else {
-		format!("{SITE_URL}/{path}")
-	}
+    if path.starts_with("http://") || path.starts_with("https://") {
+        path.into()
+    } else if path.starts_with('/') {
+        format!("{SITE_URL}{path}")
+    } else {
+        format!("{SITE_URL}/{path}")
+    }
 }

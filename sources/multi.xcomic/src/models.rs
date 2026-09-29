@@ -3,171 +3,171 @@ use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct GraphQlResponse<T> {
-	pub data: Option<T>,
-	#[serde(default)]
-	pub errors: Vec<GraphQlError>,
+    pub data: Option<T>,
+    #[serde(default)]
+    pub errors: Vec<GraphQlError>,
 }
 
 #[derive(Deserialize)]
 pub struct GraphQlError {
-	pub message: String,
+    pub message: String,
 }
 
 #[derive(Deserialize, Default)]
 #[serde(default, bound = "T: Default + Deserialize<'de>")]
 pub struct Node<T> {
-	pub data: T,
+    pub data: T,
 }
 
 #[derive(Deserialize, Default)]
 #[serde(default)]
 pub struct NamedData {
-	pub name: Option<String>,
+    pub name: Option<String>,
 }
 
 #[derive(Deserialize, Default)]
 #[serde(default)]
 pub struct Summary {
-	pub text: Option<String>,
+    pub text: Option<String>,
 }
 
 #[derive(Deserialize, Default)]
 #[serde(default, rename_all = "camelCase")]
 pub struct ComicData {
-	pub id: String,
-	pub name: String,
-	/// The scanlation team behind this edition, which the site badges it with.
-	pub sub_name: Option<String>,
-	#[serde(rename = "type")]
-	pub kind: Option<String>,
-	pub demographics: Option<Vec<String>>,
-	pub content_rating: Option<String>,
-	pub genres: Option<Vec<String>>,
-	pub tags: Option<Vec<String>>,
-	pub author_nodes: Option<Vec<Node<Option<NamedData>>>>,
-	pub artist_nodes: Option<Vec<Node<Option<NamedData>>>>,
-	pub tag_nodes: Option<Vec<Node<Option<NamedData>>>>,
-	pub summary: Option<Summary>,
-	/// Browse spells the synopsis flat, where the comic endpoint nests it in `summary`.
-	pub description: Option<String>,
-	pub url_path: Option<String>,
-	pub url_cover: Option<String>,
-	pub original_status: Option<String>,
-	pub upload_status: Option<String>,
-	pub read_direction: Option<String>,
-	pub translated_language: Option<String>,
-	/// Chapters on this edition, which ranks the editions of one title.
-	#[serde(rename = "chaps_normal")]
-	pub chapter_count: Option<i64>,
-	/// An edition the site has taken down still answers, so both mark a live one.
-	pub db_status: Option<String>,
-	pub is_public: Option<bool>,
+    pub id: String,
+    pub name: String,
+    /// The scanlation team behind this edition, which the site badges it with.
+    pub sub_name: Option<String>,
+    #[serde(rename = "type")]
+    pub kind: Option<String>,
+    pub demographics: Option<Vec<String>>,
+    pub content_rating: Option<String>,
+    pub genres: Option<Vec<String>>,
+    pub tags: Option<Vec<String>>,
+    pub author_nodes: Option<Vec<Node<Option<NamedData>>>>,
+    pub artist_nodes: Option<Vec<Node<Option<NamedData>>>>,
+    pub tag_nodes: Option<Vec<Node<Option<NamedData>>>>,
+    pub summary: Option<Summary>,
+    /// Browse spells the synopsis flat, where the comic endpoint nests it in `summary`.
+    pub description: Option<String>,
+    pub url_path: Option<String>,
+    pub url_cover: Option<String>,
+    pub original_status: Option<String>,
+    pub upload_status: Option<String>,
+    pub read_direction: Option<String>,
+    pub translated_language: Option<String>,
+    /// Chapters on this edition, which ranks the editions of one title.
+    #[serde(rename = "chaps_normal")]
+    pub chapter_count: Option<i64>,
+    /// An edition the site has taken down still answers, so both mark a live one.
+    pub db_status: Option<String>,
+    pub is_public: Option<bool>,
 }
 
 /// A work and its editions; the edition carries the id the source is keyed by.
 #[derive(Deserialize, Default)]
 #[serde(default, rename_all = "camelCase")]
 pub struct TitleNode {
-	pub data: ComicData,
-	pub comic_nodes: Option<Vec<Node<Option<ComicData>>>>,
+    pub data: ComicData,
+    pub comic_nodes: Option<Vec<Node<Option<ComicData>>>>,
 }
 
 #[derive(Deserialize, Default)]
 #[serde(default)]
 pub struct BrowseResponse {
-	pub items: Option<Vec<TitleNode>>,
+    pub items: Option<Vec<TitleNode>>,
 }
 
 #[derive(Deserialize, Default)]
 #[serde(default)]
 pub struct LatestUploadsItem {
-	pub chapters: Option<Vec<Node<ChapterData>>>,
+    pub chapters: Option<Vec<Node<ChapterData>>>,
 }
 
 #[derive(Deserialize, Default)]
 #[serde(default)]
 pub struct LatestUploadsResult {
-	pub items: Option<Vec<LatestUploadsItem>>,
+    pub items: Option<Vec<LatestUploadsItem>>,
 }
 
 #[derive(Deserialize, Default)]
 #[serde(default)]
 pub struct LatestUploadsResponse {
-	#[serde(rename = "get_title_latestUploads")]
-	pub latest_uploads: Option<LatestUploadsResult>,
+    #[serde(rename = "get_title_latestUploads")]
+    pub latest_uploads: Option<LatestUploadsResult>,
 }
 
 #[derive(Deserialize, Default)]
 #[serde(default)]
 pub struct RecentlyAddedResult {
-	pub items: Option<Vec<TitleNode>>,
+    pub items: Option<Vec<TitleNode>>,
 }
 
 #[derive(Deserialize, Default)]
 #[serde(default)]
 pub struct RecentlyAddedResponse {
-	#[serde(rename = "get_title_recentlyAdded")]
-	pub recently_added: Option<RecentlyAddedResult>,
+    #[serde(rename = "get_title_recentlyAdded")]
+    pub recently_added: Option<RecentlyAddedResult>,
 }
 
 #[derive(Deserialize, Default)]
 #[serde(default)]
 pub struct ComicNodeResponse {
-	#[serde(rename = "get_comicNode")]
-	pub comic: Option<Node<ComicData>>,
+    #[serde(rename = "get_comicNode")]
+    pub comic: Option<Node<ComicData>>,
 }
 
 #[derive(Deserialize, Default)]
 #[serde(default, rename_all = "camelCase")]
 pub struct ChapterData {
-	pub id: String,
-	pub db_status: Option<String>,
-	pub serial: Option<f64>,
-	pub cha_num: Option<f64>,
-	pub vol_num: Option<f64>,
-	pub dname: Option<String>,
-	pub title: Option<String>,
-	pub url_path: Option<String>,
-	pub date_create: Option<i64>,
-	pub date_modify: Option<i64>,
-	pub date_public: Option<i64>,
-	pub src_name: Option<String>,
-	pub profile_nodes: Option<Vec<Node<Option<NamedData>>>>,
-	pub group_nodes: Option<Vec<Node<Option<NamedData>>>>,
-	/// Only the latest-uploads feed sets this.
-	pub comic_node: Option<Node<Option<ComicData>>>,
+    pub id: String,
+    pub db_status: Option<String>,
+    pub serial: Option<f64>,
+    pub cha_num: Option<f64>,
+    pub vol_num: Option<f64>,
+    pub dname: Option<String>,
+    pub title: Option<String>,
+    pub url_path: Option<String>,
+    pub date_create: Option<i64>,
+    pub date_modify: Option<i64>,
+    pub date_public: Option<i64>,
+    pub src_name: Option<String>,
+    pub profile_nodes: Option<Vec<Node<Option<NamedData>>>>,
+    pub group_nodes: Option<Vec<Node<Option<NamedData>>>>,
+    /// Only the latest-uploads feed sets this.
+    pub comic_node: Option<Node<Option<ComicData>>>,
 }
 
 #[derive(Deserialize, Default)]
 #[serde(default)]
 pub struct Paging {
-	pub next: Option<i64>,
-	pub total: Option<i64>,
+    pub next: Option<i64>,
+    pub total: Option<i64>,
 }
 
 #[derive(Deserialize, Default)]
 #[serde(default)]
 pub struct ChapterListResult {
-	pub paging: Option<Paging>,
-	pub items: Option<Vec<Node<ChapterData>>>,
+    pub paging: Option<Paging>,
+    pub items: Option<Vec<Node<ChapterData>>>,
 }
 
 #[derive(Deserialize, Default)]
 #[serde(default)]
 pub struct ChapterListResponse {
-	#[serde(rename = "chapterList")]
-	pub chapter_list: Option<ChapterListResult>,
+    #[serde(rename = "chapterList")]
+    pub chapter_list: Option<ChapterListResult>,
 }
 
 #[derive(Deserialize, Default)]
 #[serde(default, rename_all = "camelCase")]
 pub struct ChapterPageData {
-	pub image_urls: Option<Vec<String>>,
+    pub image_urls: Option<Vec<String>>,
 }
 
 #[derive(Deserialize, Default)]
 #[serde(default)]
 pub struct ChapterPagesResponse {
-	#[serde(rename = "get_chapterNode")]
-	pub chapter: Option<Node<Option<ChapterPageData>>>,
+    #[serde(rename = "get_chapterNode")]
+    pub chapter: Option<Node<Option<ChapterPageData>>>,
 }

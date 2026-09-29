@@ -7,22 +7,22 @@ const BASE_URL: &str = "https://komiksin.net";
 struct Komiksin;
 
 impl Impl for Komiksin {
-	fn new() -> Self {
-		Self
-	}
+    fn new() -> Self {
+        Self
+    }
 
-	fn params(&self) -> Params {
-		Params {
-			base_url: BASE_URL.into(),
-			date_locale: "id".into(),
-			..Default::default()
-		}
-	}
+    fn params(&self) -> Params {
+        Params {
+            base_url: BASE_URL.into(),
+            date_locale: "id".into(),
+            ..Default::default()
+        }
+    }
 }
 
 register_source!(
-	MangaThemesia<Komiksin>,
-	Home,
-	ImageRequestProvider,
-	DeepLinkHandler
+    MangaThemesia<Komiksin>,
+    Home,
+    ImageRequestProvider,
+    DeepLinkHandler
 );
