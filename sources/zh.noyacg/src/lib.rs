@@ -312,8 +312,8 @@ impl NoyAcg {
                         finished = included[0].clone();
                     }
                 }
-                FilterValue::MultiSelect { id, included, .. } if id == "rating" => {
-                    if !included.is_empty() {
+                FilterValue::MultiSelect { id, included, .. } if id == "rating"
+                    && !included.is_empty() => {
                         let has_sfw = included.iter().any(|s| s == "false");
                         let has_nsfw = included.iter().any(|s| s == "true");
                         rating_override = Some(match (has_sfw, has_nsfw) {
@@ -322,7 +322,6 @@ impl NoyAcg {
                             _ => "false".into(),
                         });
                     }
-                }
                 _ => {}
             }
         }

@@ -96,7 +96,6 @@ impl<'a> Url<'a> {
         let mut view_permission = "2";
 
         for filter in filters {
-            #[expect(clippy::match_wildcard_for_single_variants)]
             match filter {
                 FilterValue::Text { id, value } => match id.as_str() {
                     "author" => {

@@ -157,8 +157,8 @@ impl Url {
                     id,
                     index,
                     ascending,
-                } => {
-                    if id.as_str() == "排序" {
+                }
+                    if id.as_str() == "排序" => {
                         let sorts = ["", "update", "views"];
                         if let Some(s) = sorts.get(*index as usize) {
                             sort = s.to_string();
@@ -167,7 +167,6 @@ impl Url {
                             }
                         }
                     }
-                }
                 _ => {}
             }
         }
