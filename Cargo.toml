@@ -54,7 +54,6 @@ mangareader = { path = "templates/mangareader" }
 mangathemesia = { path = "templates/mangathemesia" }
 mangaworld_template = { path = "templates/mangaworld" }
 mmrcms = { path = "templates/mmrcms" }
-mytheme = { path = "templates/mytheme" }
 pizzareader = { path = "templates/pizzareader" }
 tukutema = { path = "templates/tukutema" }
 vinetheme = { path = "templates/vinetheme" }
