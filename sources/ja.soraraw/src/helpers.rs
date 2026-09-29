@@ -1,6 +1,6 @@
 use aes::{
 	Aes256,
-	cipher::{BlockEncrypt, KeyInit, generic_array::GenericArray},
+	cipher::{Block, BlockCipherEncrypt, KeyInit},
 };
 use aidoku::{
 	AidokuError, ContentRating, MangaStatus, Result, Viewer,
@@ -291,13 +291,13 @@ pub fn decrypt_path(payload: &str, uuid: &str, secret: &[u8]) -> Option<String> 
 		*byte ^= secret[index % secret.len()];
 	}
 
-	let cipher = Aes256::new(GenericArray::from_slice(&key));
+	let cipher = Aes256::new_from_slice(&key).ok()?;
 	let mut counter = [0u8; BLOCK_SIZE];
 	counter.copy_from_slice(&bytes[..BLOCK_SIZE]);
 
 	let mut path = Vec::with_capacity(bytes.len() - BLOCK_SIZE);
 	for chunk in bytes[BLOCK_SIZE..].chunks(BLOCK_SIZE) {
-		let mut block = GenericArray::from(counter);
+		let mut block = Block::<Aes256>::from(counter);
 		cipher.encrypt_block(&mut block);
 		for (byte, mask) in chunk.iter().zip(block.iter()) {
 			path.push(byte ^ mask);

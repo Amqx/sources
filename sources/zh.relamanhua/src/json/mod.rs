@@ -5,7 +5,7 @@ pub mod search;
 use crate::net::Url;
 use aes::{
 	Aes128,
-	cipher::{BlockDecryptMut as _, KeyIvInit as _, block_padding::Pkcs7},
+	cipher::{BlockModeDecrypt as _, KeyIvInit as _, block_padding::Pkcs7},
 };
 use aidoku::{
 	AidokuError, Manga, MangaStatus, Result,
@@ -68,16 +68,16 @@ impl<S: AsRef<str>> EncryptedJson for S {
 		let iv = data
 			.get(..16)
 			.ok_or_else(|| error!("Expected 16 bytes for IV"))?
-			.as_bytes()
-			.into();
+			.as_bytes();
 
 		let encoded_cipher_text = data
 			.get(16..)
 			.ok_or_else(|| error!("No data found after IV"))?;
 		let mut cipher_text = hex::decode(encoded_cipher_text).map_err(AidokuError::message)?;
 
-		let plain_text = cbc::Decryptor::<Aes128>::new(key.as_bytes().into(), iv)
-			.decrypt_padded_mut::<Pkcs7>(&mut cipher_text)
+		let plain_text = cbc::Decryptor::<Aes128>::new_from_slices(key.as_bytes(), iv)
+			.map_err(AidokuError::message)?
+			.decrypt_padded::<Pkcs7>(&mut cipher_text)
 			.map_err(AidokuError::message)?
 			.into();
 		Ok(plain_text)

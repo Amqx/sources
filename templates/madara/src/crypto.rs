@@ -1,6 +1,6 @@
 use aes::{
 	Aes256,
-	cipher::{BlockDecryptMut, KeyIvInit},
+	cipher::{BlockModeDecrypt, KeyIvInit},
 };
 use aidoku::alloc::Vec;
 use block_padding::Pkcs7;
@@ -38,7 +38,7 @@ pub fn decrypt_key_iv(message: &[u8], key: &[u8], iv: Option<&[u8; 16]>) -> Opti
 		(key as &[u8], iv.unwrap() as &[u8])
 	};
 	if let Ok(cipher) = Aes256CbcDec::new_from_slices(actual_key, actual_iv) {
-		cipher.decrypt_padded_vec_mut::<Pkcs7>(ciphertext).ok()
+		cipher.decrypt_padded_vec::<Pkcs7>(ciphertext).ok()
 	} else {
 		None
 	}

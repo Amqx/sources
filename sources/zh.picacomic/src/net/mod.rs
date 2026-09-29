@@ -124,12 +124,10 @@ impl Url {
 					}
 					_ => {}
 				},
-				FilterValue::Sort { id, index, .. } => {
-					if id.as_str() == "排序" {
-						let sorts = ["dd", "da", "ld", "vd"];
-						if let Some(s) = sorts.get(*index as usize) {
-							sort = s.to_string();
-						}
+				FilterValue::Sort { id, index, .. } if id.as_str() == "排序" => {
+					let sorts = ["dd", "da", "ld", "vd"];
+					if let Some(s) = sorts.get(*index as usize) {
+						sort = s.to_string();
 					}
 				}
 				_ => {}

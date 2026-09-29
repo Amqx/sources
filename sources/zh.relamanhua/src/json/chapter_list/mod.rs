@@ -7,7 +7,7 @@ use aidoku::{
 };
 use chinese_number::{ChineseCountMethod, ChineseToNumber as _};
 use regex::Regex;
-use spin::Lazy;
+use spin::LazyLock;
 use uuid::Uuid;
 
 #[derive(Deserialize)]
@@ -25,7 +25,7 @@ impl Root {
 	}
 }
 
-static RE: Lazy<Regex> = Lazy::new(|| {
+static RE: LazyLock<Regex> = LazyLock::new(|| {
 	#[expect(clippy::unwrap_used)]
 	Regex::new(
 		r"^(?<volume>第?(?<volume_num>[\d零一二三四五六七八九十百千]+(\.\d)?)[卷部季冊册]完?)?(?<chapter>(第|连载|CH)?(?<chapter_num>[\d零一二三四五六七八九十百千]+(\.\d+)?)(?<more_chapters>-(\d+(\.\d+)?))?[話话回]?)?([ +]|$)",

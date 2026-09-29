@@ -1,6 +1,6 @@
 use aes::{
 	Aes256,
-	cipher::{BlockDecrypt, KeyInit, generic_array::GenericArray},
+	cipher::{Block, BlockCipherDecrypt, KeyInit},
 };
 use aidoku::{
 	Result,
@@ -169,7 +169,8 @@ fn aes256_ecb_decrypt(ciphertext: &[u8], key: &[u8; 32]) -> Result<Vec<u8>> {
 	let cipher = Aes256::new_from_slice(key).map_err(|_| error!("解密器初始化失败"))?;
 	let mut data: Vec<u8> = ciphertext.into();
 	for chunk in data.chunks_exact_mut(16) {
-		cipher.decrypt_block(GenericArray::from_mut_slice(chunk));
+		let block: &mut Block<Aes256> = chunk.try_into().map_err(|_| error!("响应数据长度异常"))?;
+		cipher.decrypt_block(block);
 	}
 	let pad = *data.last().ok_or_else(|| error!("解密结果为空"))? as usize;
 	if pad == 0 || pad > 16 || data.len() < pad {

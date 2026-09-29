@@ -9,6 +9,7 @@ crate-type = ["cdylib"]
 [dependencies]
 aidoku = { workspace = true, features = ["json"] }
 chrono.workspace = true
+hex.workspace = true
 hmac.workspace = true
 md5.workspace = true
 serde.workspace = true
