@@ -206,8 +206,8 @@ impl ChapterData {
 
         let date_uploaded = self
             .created_at
-            .and_then(|dt| chrono::DateTime::parse_from_rfc3339(&dt).ok())
-            .map(|d| d.timestamp());
+            .and_then(|dt| dt.parse::<jiff::Timestamp>().ok())
+            .map(|dt| dt.as_second());
 
         let thumbnail = self
             .thumbnail_url

@@ -1,6 +1,6 @@
 use crate::BASE_URL;
 use aidoku::{Chapter, Manga, MangaWithChapter, alloc::*};
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -60,7 +60,7 @@ pub struct VChapter {
     pub chapter_name: Option<String>,
     pub chapter_num: Option<f32>,
     pub chapter_slug: String,
-    pub updated_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<Timestamp>,
 }
 
 impl From<VChapter> for Chapter {
@@ -72,7 +72,7 @@ impl From<VChapter> for Chapter {
                 .unwrap_or(value.chapter_slug),
             title: value.chapter_name,
             chapter_number: value.chapter_num,
-            date_uploaded: value.updated_at.map(|v| v.timestamp()),
+            date_uploaded: value.updated_at.map(|v| v.as_second()),
             ..Default::default()
         }
     }

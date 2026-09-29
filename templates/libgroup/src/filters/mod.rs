@@ -3,7 +3,7 @@ use aidoku::{
     alloc::{String, Vec, string::ToString},
     imports::std::current_date,
 };
-use chrono::{DateTime, Datelike, Utc};
+use jiff::{Timestamp, tz::TimeZone};
 
 pub enum FilterId {
     Sort,
@@ -150,7 +150,9 @@ impl FilterProcessor {
                             params.push(("year_min", f.to_string()));
                         }
                         if let Some(t) = to {
-                            let now = DateTime::<Utc>::from_timestamp(current_date(), 0).unwrap();
+                            let now = Timestamp::from_second(current_date())
+                                .unwrap()
+                                .to_zoned(TimeZone::UTC);
                             let current_year = now.year() as f32;
 
                             let clamped_year = t.min(current_year);

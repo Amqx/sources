@@ -7,7 +7,7 @@ use aidoku::{
     imports::{html::*, net::*},
     prelude::*,
 };
-use chrono::{DateTime, FixedOffset, NaiveDateTime, TimeZone, Utc};
+use jiff::{civil::DateTime, tz};
 
 mod filter;
 
@@ -157,13 +157,9 @@ impl Source for FlameComics {
                             .and_then(|e| e.attr("title"))
                             .unwrap_or_default();
                         let format: &str = "%B %e, %Y %l:%M %p";
-                        let naive_date = NaiveDateTime::parse_from_str(&date_uploaded, format)
+                        let date = DateTime::strptime(format, &date_uploaded)
                             .expect("Error: Expected date string");
-                        let offset = FixedOffset::west_opt(7 * 3600).unwrap();
-                        let dt_with_tz: DateTime<FixedOffset> =
-                            offset.from_local_datetime(&naive_date).unwrap();
-                        let utc_dt: DateTime<Utc> = dt_with_tz.with_timezone(&Utc);
-                        let chapter_date = utc_dt.timestamp();
+                        let chapter_date = tz::offset(-7).to_timestamp(date).unwrap().as_second();
                         Chapter {
                             key,
                             chapter_number,

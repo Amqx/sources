@@ -3,7 +3,7 @@ use aidoku::{
     alloc::{String, Vec, string::ToString, vec},
     prelude::*,
 };
-use chrono::DateTime;
+use jiff::Timestamp;
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
 
@@ -207,9 +207,11 @@ impl LibGroupChapterListItem {
                     title: self.name.clone(),
                     chapter_number,
                     volume_number,
-                    date_uploaded: DateTime::parse_from_rfc3339(&branch.created_at)
+                    date_uploaded: branch
+                        .created_at
+                        .parse::<Timestamp>()
                         .ok()
-                        .map(|d| d.timestamp()),
+                        .map(|d| d.as_second()),
                     scanlators: Some(scanlators),
                     url: Some(Url::chapter_page(
                         base_url,

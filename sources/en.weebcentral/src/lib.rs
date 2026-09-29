@@ -201,8 +201,8 @@ impl Source for WeebCentral {
                         let date_uploaded = element
                             .select_first("time[datetime]")
                             .and_then(|el| el.attr("datetime"))
-                            .and_then(|dt| chrono::DateTime::parse_from_rfc3339(&dt).ok())
-                            .map(|d| d.timestamp());
+                            .and_then(|dt| dt.parse::<jiff::Timestamp>().ok())
+                            .map(|dt| dt.as_second());
 
                         Some(Chapter {
                             key,
@@ -310,8 +310,8 @@ impl Home for WeebCentral {
             let date_uploaded = el
                 .select_first("time[datetime]")
                 .and_then(|el| el.attr("datetime"))
-                .and_then(|dt| chrono::DateTime::parse_from_rfc3339(&dt).ok())
-                .map(|d| d.timestamp());
+                .and_then(|dt| dt.parse::<jiff::Timestamp>().ok())
+                .map(|dt| dt.as_second());
             Some(MangaWithChapter {
                 manga: Manga {
                     key: manga_key,

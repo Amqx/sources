@@ -8,6 +8,7 @@ use aidoku::{
     imports::std::get_utc_offset,
     serde::Deserializer,
 };
+use jiff::{civil::DateTime, tz::Offset};
 use serde::{Deserialize, Serialize};
 
 use crate::BASE_URL;
@@ -153,9 +154,7 @@ impl From<MangaInfo> for Manga {
             title: capitalize(&value.name),
             cover: format!("{}/assets/tmp/album/{}", BASE_URL, value.avatar).into(),
             artists: value.source.map(|v| [v].to_vec()),
-            authors: value
-                .author
-                .filter(|v| !v.is_empty()),
+            authors: value.author.filter(|v| !v.is_empty()),
             description: value.detail,
             url: Some(format!("{}/album/{}-{}", BASE_URL, value.url, value.id)),
             tags: Some(tags),
@@ -224,15 +223,14 @@ pub struct MChapter {
     #[serde(deserialize_with = "deserialize_chapter_info")]
     pub info: ChapterInfo,
 }
-use chrono::{FixedOffset, NaiveDateTime, TimeZone};
 fn parse_datetime_to_timestamp(s: &str) -> Option<i64> {
     // Format "YYYY-MM-DD HH:MM:SS"
-    let naive = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S").ok()?;
-    let offset = FixedOffset::east_opt(get_utc_offset() as i32)?;
+    let datetime = DateTime::strptime("%Y-%m-%d %H:%M:%S", s).ok()?;
+    let offset = Offset::from_seconds(get_utc_offset() as i32).ok()?;
 
-    let dt = offset.from_local_datetime(&naive).single()?;
-    Some(dt.timestamp())
+    Some(offset.to_timestamp(datetime).ok()?.as_second())
 }
+
 impl From<MChapter> for Chapter {
     fn from(value: MChapter) -> Self {
         Self {

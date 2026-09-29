@@ -9,7 +9,6 @@ aidoku = { workspace = true, features = ["json"] }
 base64.workspace = true
 block-padding.workspace = true
 cbc = { workspace = true, features = ["alloc"] }
-chrono = { workspace = true, features = ["alloc"] }
 digest.workspace = true
 md-5.workspace = true
 serde = { workspace = true, features = ["derive", "alloc"] }

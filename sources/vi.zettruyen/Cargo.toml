@@ -8,7 +8,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 aidoku.workspace = true
-chrono = { workspace = true, features = ["alloc", "serde"] }
+jiff = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive", "alloc"] }
 wpcomics.workspace = true
 

@@ -111,9 +111,11 @@ impl Home for CuuTruyen {
                 } else {
                     None
                 };
-                let date_uploaded = chrono::DateTime::parse_from_rfc3339(&value.created_at)
+                let date_uploaded = value
+                    .created_at
+                    .parse::<jiff::Timestamp>()
                     .ok()
-                    .map(|d| d.timestamp());
+                    .map(|d| d.as_second());
 
                 MangaWithChapter {
                     manga: Manga {

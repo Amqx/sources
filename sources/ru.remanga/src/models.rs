@@ -6,7 +6,11 @@ use alloc::{
     string::{String, ToString},
     vec::Vec,
 };
-use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
+use jiff::{
+    Timestamp,
+    civil::{Date, DateTime},
+    tz::TimeZone,
+};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -265,31 +269,44 @@ pub fn parse_timestamp(value: Option<&str>) -> Option<i64> {
     if raw.is_empty() {
         return None;
     }
-    if let Ok(dt) = DateTime::parse_from_rfc3339(raw) {
-        return Some(dt.timestamp());
+    if let Ok(timestamp) = raw.parse::<Timestamp>() {
+        return Some(timestamp.as_second());
     }
     for fmt in [
         "%Y-%m-%dT%H:%M:%S%.f",
         "%Y-%m-%dT%H:%M:%S",
         "%Y-%m-%d %H:%M:%S",
     ] {
-        if let Ok(naive) = NaiveDateTime::parse_from_str(raw, fmt) {
-            return Some(naive.and_utc().timestamp());
+        if let Ok(datetime) = DateTime::strptime(fmt, raw) {
+            return Some(
+                datetime
+                    .to_zoned(TimeZone::UTC)
+                    .ok()?
+                    .timestamp()
+                    .as_second(),
+            );
         }
     }
-    if let Ok(date) =
-        NaiveDate::parse_from_str(&raw.chars().take(10).collect::<String>(), "%Y-%m-%d")
-    {
-        return Some(date.and_hms_opt(0, 0, 0)?.and_utc().timestamp());
+    if let Ok(date) = Date::strptime("%Y-%m-%d", raw.chars().take(10).collect::<String>()) {
+        return Some(
+            date.at(0, 0, 0, 0)
+                .to_zoned(TimeZone::UTC)
+                .ok()?
+                .timestamp()
+                .as_second(),
+        );
     }
     None
 }
 
 fn format_day(iso: &str) -> String {
     if let Some(ts) = parse_timestamp(Some(iso))
-        && let Some(dt) = DateTime::<Utc>::from_timestamp(ts, 0)
+        && let Ok(timestamp) = Timestamp::from_second(ts)
     {
-        return dt.format("%d.%m.%Y").to_string();
+        return timestamp
+            .to_zoned(TimeZone::UTC)
+            .strftime("%d.%m.%Y")
+            .to_string();
     }
     iso.chars().take(10).collect()
 }

@@ -9,7 +9,6 @@ crate-type = ["cdylib"]
 [dependencies]
 aidoku = { workspace = true, features = ["helpers", "json"] }
 base64.workspace = true
-chrono = { workspace = true, features = ["serde"] }
 miniz_oxide.workspace = true
 regex = { workspace = true, features = ["unicode"] }
 serde.workspace = true

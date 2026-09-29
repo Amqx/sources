@@ -5,7 +5,7 @@ edition.workspace = true
 
 [dependencies]
 aidoku = { workspace = true, features = ["json"] }
-chrono.workspace = true
+jiff.workspace = true
 
 [dev-dependencies]
 aidoku = { workspace = true, features = ["test"] }

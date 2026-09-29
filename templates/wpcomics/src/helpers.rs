@@ -9,7 +9,7 @@ use aidoku::{
     },
     prelude::format,
 };
-use chrono::{NaiveDate, NaiveDateTime};
+use jiff::{civil::Date, tz::TimeZone};
 
 pub fn extract_f32_from_string(title: &str, text: &str) -> Vec<f32> {
     text.replace(title, "")
@@ -212,12 +212,10 @@ pub fn parse_relative_date(
         absolute_formats.unwrap_or(&["%d/%m/%Y", "%m-%d-%Y", "%Y-%d-%m"]);
 
     for fmt in absolute_formats {
-        if let Ok(d) = NaiveDate::parse_from_str(date, fmt) {
-            let dt = NaiveDateTime::new(
-                d,
-                chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap_or_default(),
-            );
-            return dt.and_utc().timestamp();
+        if let Ok(d) = Date::strptime(fmt, date)
+            && let Ok(dt) = d.at(0, 0, 0, 0).to_zoned(TimeZone::UTC)
+        {
+            return dt.timestamp().as_second();
         }
     }
 

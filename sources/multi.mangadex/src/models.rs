@@ -7,7 +7,7 @@ use aidoku::{
     alloc::{String, Vec},
     prelude::format,
 };
-use chrono::DateTime;
+use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
@@ -445,9 +445,12 @@ impl From<DexChapter<'_>> for Chapter {
             title,
             chapter_number,
             volume_number,
-            date_uploaded: DateTime::parse_from_rfc3339(val.attributes.publish_at)
+            date_uploaded: val
+                .attributes
+                .publish_at
+                .parse::<Timestamp>()
                 .ok()
-                .map(|d| d.timestamp()),
+                .map(|d| d.as_second()),
             scanlators: Some(val.scanlators()),
             url: Some(val.url()),
             language: Some(String::from(val.attributes.translated_language)),

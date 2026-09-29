@@ -6,7 +6,7 @@ use aidoku::{
         net::Request,
     },
 };
-use chrono::{Duration, NaiveDate, NaiveDateTime, TimeZone, Utc};
+use jiff::{SignedDuration, fmt::strtime, tz::TimeZone};
 
 pub fn fetch_html(url: &str) -> Result<(Document, Option<String>)> {
     let raw = Request::get(url)?.string()?;
@@ -47,30 +47,43 @@ pub fn parse_chapter_title(chapter_str: Option<String>) -> Result<(Option<f32>, 
 
 pub fn parse_date_to_timestamp(date_str: &str, now_str: Option<&str>) -> Option<i64> {
     // Try absolute date: "July 17, 2025"
-    if let Ok(date) = NaiveDate::parse_from_str(date_str, "%B %d, %Y") {
+    if let Ok(date) = strtime::parse("%B %d, %Y", date_str).and_then(|tm| tm.to_date()) {
         return Some(
-            Utc.from_utc_datetime(&date.and_hms_opt(0, 0, 0)?)
-                .timestamp(),
+            date.at(0, 0, 0, 0)
+                .to_zoned(TimeZone::UTC)
+                .ok()?
+                .timestamp()
+                .as_second(),
         );
     }
 
-    now_str?;
-
     // Try relative date: "5 minutes ago", "2 days ago"
     let lowered = date_str.to_ascii_lowercase();
-    let now = NaiveDateTime::parse_from_str(now_str?, "%B %d, %Y %I:%M %p").ok()?;
+    let now = strtime::parse("%B %d, %Y %I:%M %p", now_str?)
+        .ok()?
+        .to_datetime()
+        .ok()?
+        .to_zoned(TimeZone::UTC)
+        .ok()?
+        .timestamp();
     let parts: Vec<&str> = lowered.split_whitespace().collect();
     if parts.len() >= 2
-        && let Ok(value) = parts[0].parse::<i64>() {
-            let unit = parts[1];
-            let delta = match unit {
-                "minute" | "minutes" => Duration::minutes(value),
-                "hour" | "hours" => Duration::hours(value),
-                "day" | "days" => Duration::days(value),
-                _ => return None,
-            };
-            return Some((now - delta).and_utc().timestamp());
-        }
+        && let Ok(value) = parts[0].parse::<i64>()
+    {
+        let unit = parts[1];
+        let seconds_per_unit = match unit {
+            "minute" | "minutes" => 60,
+            "hour" | "hours" => 3_600,
+            "day" | "days" => 86_400,
+            _ => return None,
+        };
+        let seconds = value.checked_mul(seconds_per_unit)?;
+        return Some(
+            now.checked_sub(SignedDuration::from_secs(seconds))
+                .ok()?
+                .as_second(),
+        );
+    }
 
     None
 }

@@ -5,7 +5,7 @@ use aidoku::{
     serde::Deserialize,
 };
 
-use chrono::DateTime;
+use jiff::Timestamp;
 
 #[derive(Deserialize)]
 pub struct ComicItem {
@@ -251,9 +251,11 @@ impl From<ChapterItem> for aidoku::Chapter {
             key: item.order.to_string(),
             title: Some(item.title),
             chapter_number: Some(item.order as f32),
-            date_uploaded: DateTime::parse_from_rfc3339(&item.updated_at)
+            date_uploaded: item
+                .updated_at
+                .parse::<Timestamp>()
                 .ok()
-                .map(|d| d.timestamp()),
+                .map(|d| d.as_second()),
             ..Default::default()
         }
     }

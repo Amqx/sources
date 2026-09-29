@@ -9,7 +9,7 @@ crate-type = ["cdylib"]
 [dependencies]
 aidoku = { workspace = true, features = ["json"] }
 chinese-number.workspace = true
-chrono.workspace = true
+jiff.workspace = true
 md5.workspace = true
 regex = { workspace = true, features = ["unicode"] }
 serde.workspace = true

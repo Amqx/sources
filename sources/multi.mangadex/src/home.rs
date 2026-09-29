@@ -14,8 +14,8 @@ use aidoku::{
     },
     prelude::*,
 };
-use chrono::{TimeZone, Utc};
 use hashbrown::HashSet;
+use jiff::Timestamp;
 use regex::Regex;
 
 impl Home for MangaDex {
@@ -152,9 +152,9 @@ impl Home for MangaDex {
 					&createdAtSince={}\
 					{content_ratings}",
                 // gmt time, one month ago
-                Utc.timestamp_opt(current_date() - 2630000, 0)
+                Timestamp::from_second(current_date() - 2630000)
                     .unwrap()
-                    .format("%Y-%m-%dT%H:%M:%S")
+                    .strftime("%Y-%m-%dT%H:%M:%S")
             ))?,
             // recently added
             Self::get(format!(

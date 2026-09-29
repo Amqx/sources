@@ -8,7 +8,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 aidoku = { workspace = true, features = ["json"] }
-chrono = { workspace = true, features = ["alloc"] }
+jiff.workspace = true
 serde = { workspace = true, features = ["derive", "alloc"] }
 
 [dev-dependencies]

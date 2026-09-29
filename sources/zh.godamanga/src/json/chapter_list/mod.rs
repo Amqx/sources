@@ -6,7 +6,7 @@ use aidoku::{
     imports::net::Request,
     prelude::format,
 };
-use chrono::DateTime;
+use jiff::Timestamp;
 use regex::Regex;
 
 fn extract_chapter_number(title: &str) -> Option<f32> {
@@ -118,8 +118,8 @@ impl ChapterList {
             let date_uploaded = attributes
                 .get("updatedAt")
                 .and_then(|v| v.as_str())
-                .and_then(|date_str| DateTime::parse_from_rfc3339(date_str).ok())
-                .map(|dt| dt.timestamp());
+                .and_then(|date_str| date_str.parse::<Timestamp>().ok())
+                .map(|dt| dt.as_second());
 
             chapters.push(aidoku::Chapter {
                 key: id,

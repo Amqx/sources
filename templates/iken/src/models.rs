@@ -189,9 +189,11 @@ impl IkenChapter<'_> {
             title: self.title.filter(|title| !title.is_empty()),
             chapter_number: Some(self.number),
             volume_number: None,
-            date_uploaded: chrono::DateTime::parse_from_rfc3339(self.created_at)
+            date_uploaded: self
+                .created_at
+                .parse::<jiff::Timestamp>()
                 .ok()
-                .map(|d| d.timestamp()),
+                .map(|d| d.as_second()),
             scanlators: self
                 .created_by
                 .as_ref()

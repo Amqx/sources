@@ -153,9 +153,11 @@ impl Source for CuuTruyen {
                         key: chap.id.to_string(),
                         title,
                         chapter_number,
-                        date_uploaded: chrono::DateTime::parse_from_rfc3339(&chap.created_at)
+                        date_uploaded: chap
+                            .created_at
+                            .parse::<jiff::Timestamp>()
                             .ok()
-                            .map(|d| d.timestamp()),
+                            .map(|d| d.as_second()),
                         url: Some(format!(
                             "https://truycapcuutruyen.pages.dev/mangas/{}/chapters/{}",
                             manga.key, chap.id
