@@ -39,14 +39,13 @@ impl Source for Madokami {
                         query = Some(value);
                     }
                 }
-                FilterValue::Select { id, value }
-                    if id == "genre" => {
-                        if let Some(category) = value.strip_prefix("Tag: ") {
-                            query = Some(format!("\"category:{category}\""));
-                        } else {
-                            query = Some(format!("\"genre:{value}\""));
-                        }
+                FilterValue::Select { id, value } if id == "genre" => {
+                    if let Some(category) = value.strip_prefix("Tag: ") {
+                        query = Some(format!("\"category:{category}\""));
+                    } else {
+                        query = Some(format!("\"genre:{value}\""));
                     }
+                }
                 _ => {}
             }
         }

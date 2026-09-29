@@ -312,16 +312,17 @@ impl NoyAcg {
                         finished = included[0].clone();
                     }
                 }
-                FilterValue::MultiSelect { id, included, .. } if id == "rating"
-                    && !included.is_empty() => {
-                        let has_sfw = included.iter().any(|s| s == "false");
-                        let has_nsfw = included.iter().any(|s| s == "true");
-                        rating_override = Some(match (has_sfw, has_nsfw) {
-                            (true, true) => "both".into(),
-                            (false, true) => "true".into(),
-                            _ => "false".into(),
-                        });
-                    }
+                FilterValue::MultiSelect { id, included, .. }
+                    if id == "rating" && !included.is_empty() =>
+                {
+                    let has_sfw = included.iter().any(|s| s == "false");
+                    let has_nsfw = included.iter().any(|s| s == "true");
+                    rating_override = Some(match (has_sfw, has_nsfw) {
+                        (true, true) => "both".into(),
+                        (false, true) => "true".into(),
+                        _ => "false".into(),
+                    });
+                }
                 _ => {}
             }
         }
