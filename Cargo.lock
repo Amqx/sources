@@ -214,7 +214,6 @@ dependencies = [
  "aidoku-test",
  "chinese-number",
  "jiff",
- "md5",
  "paste",
  "regex",
  "serde",

@@ -10,7 +10,6 @@ crate-type = ["cdylib"]
 aidoku = { workspace = true, features = ["json"] }
 chinese-number.workspace = true
 jiff.workspace = true
-md5.workspace = true
 regex = { workspace = true, features = ["unicode"] }
 serde.workspace = true
 serde_json.workspace = true
