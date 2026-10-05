@@ -3,7 +3,7 @@ use crate::{BASE_URL, USER_AGENT};
 use aidoku::{
     Chapter, ContentRating, FilterValue, Manga, MangaPageResult, MangaStatus, Result, Viewer,
     alloc::{String, Vec, string::ToString},
-    helpers::{string::PlainText, uri::QueryParameters},
+    helpers::uri::QueryParameters,
     imports::defaults::defaults_get,
     imports::{net::Request, std::parse_date},
     prelude::*,
@@ -441,13 +441,7 @@ pub fn valid_number(value: &str) -> bool {
 }
 
 pub fn body_to_text(body: String) -> Result<String> {
-    let text = body
-        .lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-        .map(|line| line.escape_markdown())
-        .collect::<Vec<_>>()
-        .join("\n\n");
+    let text = crate::markdown::html_to_markdown(&body);
     if text.is_empty() {
         bail!("Chikari returned an empty chapter")
     }
