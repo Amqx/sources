@@ -58,7 +58,7 @@ pub fn api_json<T: DeserializeOwned>(url: &str) -> Result<T> {
 /// leave the user looking at a page that seems merely empty.
 pub fn response_json<T: DeserializeOwned>(response: Response) -> Result<T> {
     if response.status_code() >= 400 {
-        bail!("Response Error: {}", response.status_code())
+        bail!("Response Error: {}", response.status_code());
     }
     response.get_json_owned()
 }

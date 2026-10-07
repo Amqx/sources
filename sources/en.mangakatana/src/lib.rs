@@ -515,7 +515,9 @@ impl ListingProvider for MangaKatana {
         let url = match listing.id.as_str() {
             "latest" => format!("{BASE_URL}/page/{page}"),
             "popular" => format!("{BASE_URL}/manga/page/{page}"),
-            _ => bail!("Unknown listing: {}", listing.id),
+            _ => {
+                bail!("Unknown listing: {}", listing.id);
+            }
         };
         Ok(parse_manga_list(&Request::get(url)?.html()?))
     }

@@ -271,7 +271,7 @@ impl Source for Comix {
         let json: ChapterResponse = web_view.decode_json_owned(&response)?;
 
         let Some(result) = json.result else {
-            bail!("Missing chapter")
+            bail!("Missing chapter");
         };
 
         let base_url = result.pages.base_url.trim_end_matches('/');
@@ -498,7 +498,9 @@ impl ListingProvider for Comix {
                 &format!("{API_URL}/manga?order[created_at]=desc&limit=30&page={page}"),
             ),
 
-            _ => bail!("Unknown listing"),
+            _ => {
+                bail!("Unknown listing");
+            }
         }
     }
 }

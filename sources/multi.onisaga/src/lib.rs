@@ -99,7 +99,9 @@ impl ListingProvider for OniSaga {
         let sort = match listing.id.as_str() {
             "popular" => "view",
             "latest" => "created_at",
-            _ => bail!("Unknown listing"),
+            _ => {
+                bail!("Unknown listing");
+            }
         };
         let updates = PostFilterUpdates {
             platform: settings::default_type(),

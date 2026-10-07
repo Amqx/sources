@@ -61,15 +61,15 @@ impl ComixWebView {
                 .get_header("cf-mitigated")
                 .is_some_and(|value| value == "challenge")
         {
-            bail!("{CF_CHALLENGE_HTML_ERROR_MESSAGE}")
+            bail!("{CF_CHALLENGE_HTML_ERROR_MESSAGE}");
         } else if status_code >= 400 {
-            bail!("Response Error: {}", response.status_code())
+            bail!("Response Error: {}", response.status_code());
         } else if response
             .get_html()?
             .select_first("head > title")
             .is_some_and(|e| e.text().is_some_and(|t| t == "Security check"))
         {
-            bail!("{}", WAF_CHALLENGE_HTML_ERROR_MESSAGE)
+            bail!("{}", WAF_CHALLENGE_HTML_ERROR_MESSAGE);
         }
 
         self.web_view
@@ -130,7 +130,7 @@ impl ComixWebView {
                 bail!("Secure module not found");
             }
         } else {
-            bail!("Invalid path")
+            bail!("Invalid path");
         }
     }
 
@@ -313,15 +313,15 @@ impl ComixWebView {
                 .get_header("cf-mitigated")
                 .is_some_and(|value| value == "challenge")
         {
-            bail!("{CF_CHALLENGE_ERROR_MESSAGE}")
+            bail!("{CF_CHALLENGE_ERROR_MESSAGE}");
         } else if status_code >= 400 {
             if response.status_code() == 403
                 && serde_json::from_slice::<ErrorResponse>(&response.get_data()?)
                     .is_ok_and(|e| e.error == WAF_CHALLENGE_KEY)
             {
-                bail!("{}", WAF_CHALLENGE_ERROR_MESSAGE)
+                bail!("{}", WAF_CHALLENGE_ERROR_MESSAGE);
             } else {
-                bail!("Response Error: {}", response.status_code())
+                bail!("Response Error: {}", response.status_code());
             }
         } else if let Some(enc) = response.get_header("x-enc") {
             let encoded_response = response
@@ -349,7 +349,7 @@ impl ComixWebView {
             if result.starts_with("error:") {
                 bail!("{result}");
             } else if result.is_empty() {
-                bail!("Failed to fetch result")
+                bail!("Failed to fetch result");
             }
 
             serde_json::from_str(&result).map_err(|e| error!("Invalid json: {}", e))

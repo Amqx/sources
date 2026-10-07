@@ -71,11 +71,11 @@ impl MangaBall {
                 continue;
             }
             if response.status_code() >= 400 {
-                bail!("Response Error: {}", response.status_code())
+                bail!("Response Error: {}", response.status_code());
             }
             return Ok(response);
         }
-        bail!("Unable to establish a MangaBall session")
+        bail!("Unable to establish a MangaBall session");
     }
 
     pub fn post_json<T: DeserializeOwned>(&self, path: &str, body: &str) -> Result<T> {

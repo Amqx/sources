@@ -168,8 +168,8 @@ fn aes256_ecb_decrypt(ciphertext: &[u8], key: &[u8; 32]) -> Result<Vec<u8>> {
     }
     let cipher = Aes256::new_from_slice(key).map_err(|_| error!("解密器初始化失败"))?;
     let mut data: Vec<u8> = ciphertext.into();
-    for chunk in data.chunks_exact_mut(16) {
-        let block: &mut Block<Aes256> = chunk.try_into().map_err(|_| error!("响应数据长度异常"))?;
+    for chunk in data.as_chunks_mut::<16>().0 {
+        let block: &mut Block<Aes256> = chunk.into();
         cipher.decrypt_block(block);
     }
     let pad = *data.last().ok_or_else(|| error!("解密结果为空"))? as usize;

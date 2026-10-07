@@ -103,7 +103,7 @@ pub fn resolve(url: &str, context: &PageContext) -> Result<String> {
             .ok_or(error!("Could not refresh the reader token"))?;
     }
 
-    bail!("Could not load the page image")
+    bail!("Could not load the page image");
 }
 
 /// The context Aidoku hands back to us for each page.

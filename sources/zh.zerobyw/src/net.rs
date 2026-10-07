@@ -75,13 +75,19 @@ impl Url<'_> {
                             0 => order = "addtime",
                             1 => order = "views",
                             2 => order = "favores",
-                            _ => bail!("Invalid index"),
+                            _ => {
+                                bail!("Invalid index");
+                            }
                         }
                     }
-                    _ => bail!("Invalid sort filter id:`{id}`"),
+                    _ => {
+                        bail!("Invalid sort filter id:`{id}`");
+                    }
                 },
 
-                _ => bail!("Invalid filter:`{filter:?}`"),
+                _ => {
+                    bail!("Invalid filter:`{filter:?}`");
+                }
             }
         }
 

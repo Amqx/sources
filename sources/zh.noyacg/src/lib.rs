@@ -215,7 +215,9 @@ impl ListingProvider for NoyAcg {
                     .json_owned()?;
                 return Ok(resp.into_random_result());
             }
-            _ => bail!("未知的列表類型"),
+            _ => {
+                bail!("未知的列表類型");
+            }
         };
         post_form_listing(&url, &body, &referer, &adult, page)
     }

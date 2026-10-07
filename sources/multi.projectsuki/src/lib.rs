@@ -439,7 +439,9 @@ impl ListingProvider for ProjectSuki {
                 );
                 Ok(parse_manga_list(&fetch_html(&url)?))
             }
-            _ => bail!("Unknown listing: {}", listing.id),
+            _ => {
+                bail!("Unknown listing: {}", listing.id);
+            }
         }
     }
 }
