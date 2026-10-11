@@ -2,6 +2,12 @@ name: Build sources
 
 on:
   workflow_dispatch:
+    inputs:
+      rebuild_all:
+        description: Ignore the deployed manifest and rebuild all sources from scratch
+        type: boolean
+        required: false
+        default: false
   push:
     branches:
       - main
@@ -37,6 +43,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Fetch the deployed source list
+        if: ${{ !inputs.rebuild_all }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         continue-on-error: true
         with:
@@ -89,9 +96,18 @@ jobs:
           PY
 
       - name: Build sources
+        env:
+          REBUILD_ALL: ${{ inputs.rebuild_all }}
         run: |
+          if [ "$REBUILD_ALL" = "true" ]; then
+            cargo clean
+          fi
           uv run --frozen scripts/aidoku.py manifest -o "$RUNNER_TEMP/build-manifest.json"
-          uv run --frozen scripts/aidoku.py package --reuse-from .deployed/sources
+          if [ "$REBUILD_ALL" = "true" ]; then
+            uv run --frozen scripts/aidoku.py package
+          else
+            uv run --frozen scripts/aidoku.py package --reuse-from .deployed/sources
+          fi
 
       - name: Build source list
         run: |
