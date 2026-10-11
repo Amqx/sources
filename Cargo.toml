@@ -12,8 +12,8 @@ min-app-version = "0.9"
 
 [workspace.dependencies]
 # Pinned so every source compiles against the same aidoku-rs.
-aidoku = { git = "https://github.com/Amqx/aidoku-rs.git", rev = "e1320b0a2e11afb59e4dee374883a2212d325699", version = "0.3.0" }
-aidoku-test = { git = "https://github.com/Amqx/aidoku-rs.git", rev = "e1320b0a2e11afb59e4dee374883a2212d325699" }
+aidoku = { git = "https://github.com/Amqx/aidoku-rs.git", rev = "0a493897e070d58c901f10ef6b259428c2b5bc27", version = "0.3.0" }
+aidoku-test = { git = "https://github.com/Amqx/aidoku-rs.git", rev = "0a493897e070d58c901f10ef6b259428c2b5bc27" }
 
 # All workspaces use shared dependency versions. Members inherit
 # and add their own features when necessary.
