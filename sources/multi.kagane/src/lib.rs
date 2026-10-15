@@ -1,14 +1,12 @@
 #![no_std]
 
 use aidoku::{
-    Chapter, DeepLinkHandler, DeepLinkResult, FilterValue, Home, HomeComponent, HomeComponentValue,
-    HomeLayout, ImageRequestProvider, Link, Listing, ListingKind, ListingProvider, Manga,
-    MangaPageResult, MangaWithChapter, Page, PageContent, PageContext, Result, Source,
+    Chapter, ContentRating, DeepLinkHandler, DeepLinkResult, FilterValue, Home, HomeComponent,
+    HomeComponentValue, HomeLayout, ImageRequestProvider, Link, Listing, ListingKind,
+    ListingProvider, Manga, MangaPageResult, MangaWithChapter, Page, PageContent, PageContext,
+    Result, Source,
     alloc::{format, string::String, vec, vec::Vec},
-    imports::{
-        net::{Request, TimeUnit, set_rate_limit},
-        std::parse_date,
-    },
+    imports::net::{Request, TimeUnit, set_rate_limit},
     prelude::*,
 };
 
@@ -84,10 +82,10 @@ impl Source for Kagane {
         needs_details: bool,
         needs_chapters: bool,
     ) -> Result<Manga> {
-        let det: SeriesDetail =
-            api_get(&format!("{API_BASE}/series/{}", manga.key))?.json_owned()?;
-
         if needs_details {
+            let det: SeriesDetail =
+                api_get(&format!("{API_BASE}/series/{}", manga.key))?.json_owned()?;
+
             manga.title = String::from(det.title.trim());
             manga.cover = det
                 .series_covers
@@ -96,7 +94,11 @@ impl Source for Kagane {
             manga.url = Some(format!("{BASE_URL}/series/{}", manga.key));
             manga.status = parse_status(&det.upload_status);
             manga.viewer = parse_viewer(det.format.as_deref());
-            manga.content_rating = parse_content_rating(det.content_rating.as_deref());
+            manga.content_rating = if det.is_pornographic {
+                ContentRating::NSFW
+            } else {
+                parse_content_rating(det.age_rating.or(det.content_rating).as_deref())
+            };
 
             if let Some(desc) = det.description {
                 let trimmed = desc.trim();
@@ -151,36 +153,37 @@ impl Source for Kagane {
         }
 
         if needs_chapters {
-            // API returns chapters oldest-first; reverse the iterator for
-            // newest-first display.
-            let chapters: Vec<Chapter> = det
-                .series_books
+            // The chapter list lives in a compact index of its own.
+            let index: BookIndex = api_get(&format!(
+                "{API_BASE}/series/{}/books/index?fields=List",
+                manga.key
+            ))?
+            .json_owned()?;
+            let mut books = index.into_books()?;
+            // Newest first, by the site's own ordering.
+            books.sort_by(|a, b| b.sort_no.total_cmp(&a.sort_no));
+
+            let chapters: Vec<Chapter> = books
                 .into_iter()
-                .rev()
                 .map(|book| {
                     let url = format!("{BASE_URL}/series/{}/reader/{}", manga.key, book.book_id);
-                    let scanlators: Vec<String> =
-                        book.groups.into_iter().map(|g| g.title).collect();
                     Chapter {
                         key: book.book_id,
                         chapter_number: book.chapter_no.as_deref().and_then(|s| s.parse().ok()),
                         volume_number: book.volume_no.as_deref().and_then(|s| s.parse().ok()),
-                        title: {
-                            let t = book.title.trim();
+                        title: book.title.and_then(|t| {
+                            let t = t.trim();
                             if t.is_empty() {
                                 None
                             } else {
                                 Some(String::from(t))
                             }
-                        },
-                        date_uploaded: book.created_at.as_deref().and_then(|s| {
-                            let s = s.split_once('.').map_or(s, |(b, _)| b);
-                            parse_date(format!("{s}Z"), "yyyy-MM-dd'T'HH:mm:ss'Z'")
                         }),
-                        scanlators: if scanlators.is_empty() {
+                        date_uploaded: book.released_at,
+                        scanlators: if book.groups.is_empty() {
                             None
                         } else {
-                            Some(scanlators)
+                            Some(book.groups)
                         },
                         url: Some(url),
                         ..Default::default()

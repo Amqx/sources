@@ -1,6 +1,7 @@
 use aidoku::{
     Chapter, Manga, MangaWithChapter,
     alloc::{format, string::String, vec::Vec},
+    bail,
     imports::std::parse_date,
 };
 use serde::Deserialize;
@@ -94,14 +95,15 @@ pub struct SeriesDetail {
     pub upload_status: String,
     pub format: Option<String>,
     pub content_rating: Option<String>,
+    pub age_rating: Option<String>,
+    #[serde(default)]
+    pub is_pornographic: bool,
     #[serde(default)]
     pub series_staff: Vec<StaffMember>,
     #[serde(default)]
     pub genres: Vec<GenreItem>,
     #[serde(default)]
     pub tags: Vec<TagItem>,
-    #[serde(default)]
-    pub series_books: Vec<BookItem>,
     #[serde(default)]
     pub series_covers: Vec<CoverItem>,
 }
@@ -127,14 +129,78 @@ pub struct TagItem {
 }
 
 #[derive(Deserialize)]
-pub struct BookItem {
-    pub book_id: String,
-    pub title: String,
-    pub created_at: Option<String>,
-    pub chapter_no: Option<String>,
-    pub volume_no: Option<String>,
+pub struct BookIndex {
+    pub count: usize,
+    pub fields: Vec<String>,
     #[serde(default)]
     pub groups: Vec<GroupItem>,
+    #[serde(default)]
+    pub books: Vec<Vec<serde_json::Value>>,
+}
+
+pub struct BookItem {
+    pub book_id: String,
+    pub title: Option<String>,
+    pub released_at: Option<i64>,
+    pub sort_no: f32,
+    pub chapter_no: Option<String>,
+    pub volume_no: Option<String>,
+    pub groups: Vec<String>,
+}
+
+impl BookIndex {
+    pub fn into_books(self) -> aidoku::Result<Vec<BookItem>> {
+        if self.books.len() != self.count {
+            bail!("Incomplete Kagane chapter index");
+        }
+        let column = |name: &str| self.fields.iter().position(|f| f == name);
+        let (Some(id_ix), Some(title_ix), Some(released_ix), Some(sort_ix)) = (
+            column("book_id"),
+            column("title"),
+            column("released_at"),
+            column("sort_no"),
+        ) else {
+            bail!("Unexpected Kagane chapter index fields");
+        };
+        let (chapter_ix, volume_ix, group_ix) = (
+            column("chapter_no"),
+            column("volume_no"),
+            column("group_ix"),
+        );
+
+        let as_string = |v: Option<&serde_json::Value>| match v {
+            Some(serde_json::Value::String(s)) => Some(s.clone()),
+            Some(serde_json::Value::Number(n)) => Some(format!("{n}")),
+            _ => None,
+        };
+
+        let mut books = Vec::with_capacity(self.books.len());
+        for row in &self.books {
+            let Some(book_id) = row.get(id_ix).and_then(|v| v.as_str()) else {
+                continue;
+            };
+            let groups = group_ix
+                .and_then(|ix| row.get(ix))
+                .and_then(|v| v.as_array())
+                .map(|ixs| {
+                    ixs.iter()
+                        .filter_map(|ix| self.groups.get(ix.as_u64()? as usize))
+                        .map(|g| g.title.clone())
+                        .collect()
+                })
+                .unwrap_or_default();
+            books.push(BookItem {
+                book_id: String::from(book_id),
+                title: as_string(row.get(title_ix)),
+                released_at: row.get(released_ix).and_then(|v| v.as_i64()),
+                sort_no: row.get(sort_ix).and_then(|v| v.as_f64()).unwrap_or(0.0) as f32,
+                chapter_no: chapter_ix.and_then(|ix| as_string(row.get(ix))),
+                volume_no: volume_ix.and_then(|ix| as_string(row.get(ix))),
+                groups,
+            });
+        }
+        Ok(books)
+    }
 }
 
 #[derive(Deserialize)]

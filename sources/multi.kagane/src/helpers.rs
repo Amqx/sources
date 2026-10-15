@@ -16,9 +16,8 @@ pub const SORT_PARAMS: &[&str] = &[
     "avg_views_week",  // 4: Popular (Week)
     "avg_views_month", // 5: Popular (Month)
     "updated_at",      // 6: Recently Updated
-    "series_name",     // 7: By Name
-    "books_count",     // 8: Books Count
-    "created_at",      // 9: Recently Added
+    "current_books",   // 7: Books Count
+    "created_at",      // 8: Recently Added
 ];
 
 pub fn search_url(query: Option<&str>, page: i32, sort_idx: usize) -> String {
@@ -66,11 +65,11 @@ fn languages() -> Vec<String> {
         .unwrap_or_else(|| vec![String::from("en")])
 }
 
-/// The content ratings to request from the API, from the "Content Rating"
-/// setting. Falls back to Safe + Suggestive when the setting is unset.
-fn content_ratings() -> Vec<String> {
-    defaults_get::<Vec<String>>("contentRating")
-        .unwrap_or_else(|| vec![String::from("Safe"), String::from("Suggestive")])
+/// The API `age_rating`s selected in the "Content Rating" setting. Falls back
+/// to Safe + FifteenPlus when the setting is unset.
+fn age_ratings() -> Vec<String> {
+    defaults_get::<Vec<String>>("ageRating")
+        .unwrap_or_else(|| vec![String::from("Safe"), String::from("FifteenPlus")])
 }
 
 /// The source types to request from the API, from the "Source Type" setting.
@@ -107,8 +106,8 @@ pub fn parse_content_rating(s: Option<&str>) -> ContentRating {
     let lower = s.map(|s| s.to_lowercase());
     match lower.as_deref() {
         Some("safe") => ContentRating::Safe,
-        Some("suggestive") => ContentRating::Suggestive,
-        Some("erotica") | Some("pornographic") => ContentRating::NSFW,
+        Some("suggestive") | Some("fifteenplus") => ContentRating::Suggestive,
+        Some("erotica") | Some("pornographic") | Some("eighteenplus") => ContentRating::NSFW,
         _ => ContentRating::Suggestive,
     }
 }
@@ -131,10 +130,14 @@ pub fn build_search_body(
         String::from("source_type"),
         serde_json::json!(source_types()),
     );
-    body.insert(
-        String::from("content_rating"),
-        serde_json::json!(content_ratings()),
-    );
+    let ratings = age_ratings();
+    if !ratings.is_empty() {
+        body.insert(String::from("age_rating"), serde_json::json!(ratings));
+    }
+    // The site has no pornographic age rating; `is_pornographic` covers it.
+    if !defaults_get::<bool>("showPornographic").unwrap_or(false) {
+        body.insert(String::from("is_pornographic"), serde_json::json!(false));
+    }
 
     if !statuses.is_empty() {
         body.insert(String::from("upload_status"), serde_json::json!(statuses));

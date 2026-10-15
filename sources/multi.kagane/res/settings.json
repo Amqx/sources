@@ -5,10 +5,19 @@
 		"items": [
 			{
 				"type": "multi-select",
-				"key": "contentRating",
+				"key": "ageRating",
 				"title": "Content Rating",
-				"values": ["Safe", "Suggestive", "Erotica", "Pornographic"],
-				"default": ["Safe", "Suggestive"],
+				"values": ["Safe", "FifteenPlus", "EighteenPlus"],
+				"titles": ["Safe", "Suggestive", "Mature (18+)"],
+				"default": ["Safe", "FifteenPlus"],
+				"refreshes": ["content"]
+			},
+			{
+				"type": "switch",
+				"key": "showPornographic",
+				"title": "Show Pornographic Content",
+				"subtitle": "Only applies when Mature (18+) is selected.",
+				"default": false,
 				"refreshes": ["content"]
 			},
 			{
