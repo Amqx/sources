@@ -2227,6 +2227,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "toonkotsu"
+version = "0.1.0"
+dependencies = [
+ "aes",
+ "aidoku",
+ "aidoku-test",
+ "base64",
+ "ctr",
+ "hmac",
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "tortugaceviri"
 version = "0.1.0"
 dependencies = [
