@@ -9,6 +9,7 @@ crate-type = ["cdylib"]
 [dependencies]
 aes.workspace = true
 aidoku = { workspace = true, features = ["json"] }
+hmac.workspace = true
 serde = { workspace = true, features = ["derive", "alloc"] }
 serde_json = { workspace = true, features = ["alloc"] }
 sha2.workspace = true
