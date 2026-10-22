@@ -855,6 +855,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "hentai2read"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "hentailib"
 version = "0.1.0"
 dependencies = [
