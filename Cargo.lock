@@ -201,6 +201,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "bilinovel"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "regex",
+ "spin 0.12.3",
+]
+
+[[package]]
 name = "bitflags"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
