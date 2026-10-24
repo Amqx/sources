@@ -5,7 +5,7 @@ use aidoku::{
     MangaPageResult, Page, PageContent, PageContext, Result, Source,
     alloc::{String, Vec, format},
     imports::{
-        net::{Request, TimeUnit, set_rate_limit},
+        net::{Request, Response, TimeUnit, set_rate_limit},
         std::send_partial_result,
     },
     prelude::*,
@@ -31,16 +31,7 @@ impl Source for Atsumaru {
         filters: Vec<FilterValue>,
     ) -> Result<MangaPageResult> {
         let url = search_url(query.as_deref(), page, &filters);
-        let response: SearchResponse = api_json(&url)?;
-
-        Ok(MangaPageResult {
-            entries: response
-                .hits
-                .into_iter()
-                .map(|hit| hit.document.into())
-                .collect(),
-            has_next_page: page * PER_PAGE < response.found,
-        })
+        Ok(search_page(api_json(&url)?, page))
     }
 
     fn get_manga_update(
@@ -122,13 +113,8 @@ impl Source for Atsumaru {
 
 impl ListingProvider for Atsumaru {
     fn get_manga_list(&self, listing: Listing, page: i32) -> Result<MangaPageResult> {
-        let response: ListingResponse = api_json(&listing_url(&listing.id, page))?;
-        let entries: Vec<Manga> = response.items.into_iter().map(Into::into).collect();
-
-        Ok(MangaPageResult {
-            has_next_page: !entries.is_empty(),
-            entries,
-        })
+        let response = api_get(&listing_url(&listing.id, page))?.send()?;
+        listing_page(&listing.id, page, response)
     }
 }
 
@@ -160,12 +146,11 @@ impl Home for Atsumaru {
         for (response, (id, name)) in Request::send_all(requests).into_iter().zip(LISTINGS) {
             let entries = response
                 .map_err(Into::into)
-                .and_then(response_json::<ListingResponse>)
-                .map(|response| {
-                    response
-                        .items
+                .and_then(|response| listing_page(id, 1, response))
+                .map(|page| {
+                    page.entries
                         .into_iter()
-                        .map(|item| Manga::from(item).into())
+                        .map(Into::into)
                         .collect::<Vec<Link>>()
                 })
                 .unwrap_or_default();
@@ -215,6 +200,34 @@ impl DeepLinkHandler for Atsumaru {
             _ => None,
         })
     }
+}
+
+fn search_page(response: SearchResponse, page: i32) -> MangaPageResult {
+    MangaPageResult {
+        entries: response
+            .hits
+            .into_iter()
+            .map(|hit| hit.document.into())
+            .collect(),
+        has_next_page: page * PER_PAGE < response.found,
+    }
+}
+
+/// Parses the response to a [`listing_url`] request. Trending comes back in the
+/// search engine's shape, since that's what it is.
+fn listing_page(id: &str, page: i32, response: Response) -> Result<MangaPageResult> {
+    if id == TRENDING {
+        return Ok(search_page(response_json(response)?, page));
+    }
+    let entries: Vec<Manga> = response_json::<ListingResponse>(response)?
+        .items
+        .into_iter()
+        .map(Into::into)
+        .collect();
+    Ok(MangaPageResult {
+        has_next_page: !entries.is_empty(),
+        entries,
+    })
 }
 
 register_source!(
@@ -299,6 +312,7 @@ mod tests {
         assert!(!decoded.contains("chapterCount:<="), "{decoded}");
         assert!(decoded.contains("isAdult:=false"), "{decoded}");
         assert!(decoded.contains("officialTranslation:=true"), "{decoded}");
+        assert!(decoded.contains("medium:!=[`Novel`]"), "{decoded}");
         assert!(decoded.contains("sort_by=views:desc"), "{decoded}");
         assert!(decoded.contains("page=2"), "{decoded}");
     }

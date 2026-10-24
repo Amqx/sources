@@ -63,13 +63,34 @@ pub fn response_json<T: DeserializeOwned>(response: Response) -> Result<T> {
     response.get_json_owned()
 }
 
-/// The url of one of the infinite scroll listing endpoints, which are paginated
-/// starting from zero.
-pub fn listing_url(endpoint: &str, page: i32) -> String {
+/// The listing that the website builds from a search sorted by trend, rather
+/// than serving it from an endpoint of its own.
+pub const TRENDING: &str = "trending";
+
+/// The url of one of the home page listings, which are paginated by offset.
+/// Trending is the exception, being a search.
+pub fn listing_url(listing: &str, page: i32) -> String {
+    if listing == TRENDING {
+        let sort = FilterValue::Sort {
+            id: "sort".into(),
+            index: SORT_FIELDS
+                .iter()
+                .position(|field| *field == TRENDING)
+                .unwrap_or(0) as i32,
+            ascending: false,
+        };
+        return search_url(None, page, &[sort]);
+    }
+    // the website ranks popularity by the day unless told otherwise
+    let timeframe = if listing == "popular" {
+        "&timeframe=daily"
+    } else {
+        ""
+    };
     let adult = if adult_mode() { "&adult=1" } else { "" };
     format!(
-        "{BASE_URL}/api/infinite/{endpoint}?page={}&types={TYPES}{adult}",
-        page - 1
+        "{BASE_URL}/api/home2/{listing}?offset={}&limit={PER_PAGE}&types={TYPES}&mediums=Comic{timeframe}{adult}",
+        (page - 1) * PER_PAGE
     )
 }
 
@@ -168,6 +189,8 @@ pub fn search_url(query: Option<&str>, page: i32, filters: &[FilterValue]) -> St
     clauses.push(
         "(mbContentRating:=[`Safe`,`Suggestive`,`Erotica`] || mbContentRating:!=*)".to_owned(),
     );
+    // novels share the collection, but have no pages to read
+    clauses.push("medium:!=[`Novel`]".to_owned());
     clauses.push("views:>0".to_owned());
 
     let query = query.filter(|q| !q.is_empty());
