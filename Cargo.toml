@@ -52,6 +52,7 @@ liliana = { path = "templates/liliana" }
 madara = { path = "templates/madara" }
 madtheme = { path = "templates/madtheme" }
 mangabox = { path = "templates/mangabox" }
+mangak = { path = "templates/mangak" }
 mangareader = { path = "templates/mangareader" }
 mangathemesia = { path = "templates/mangathemesia" }
 mangaworld_template = { path = "templates/mangaworld" }

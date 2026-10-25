@@ -1289,6 +1289,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mangak"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "mangakakalot"
 version = "0.1.0"
 dependencies = [
@@ -2244,7 +2254,7 @@ version = "0.1.0"
 dependencies = [
  "aidoku",
  "aidoku-test",
- "madtheme",
+ "mangak",
 ]
 
 [[package]]
