@@ -12,6 +12,7 @@ jiff = { workspace = true, features = ["serde"] }
 regex = { workspace = true, features = ["unicode"] }
 serde.workspace = true
 serde_json.workspace = true
+spin.workspace = true
 
 [dev-dependencies]
 aidoku = { workspace = true, features = ["test"] }

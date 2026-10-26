@@ -9,6 +9,7 @@ crate-type = ["cdylib"]
 [dependencies]
 aidoku = { workspace = true, features = ["json"] }
 regex = { workspace = true, features = ["unicode"] }
+spin.workspace = true
 
 [dev-dependencies]
 aidoku = { workspace = true, features = ["test"] }
