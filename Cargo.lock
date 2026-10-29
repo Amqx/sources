@@ -2512,10 +2512,28 @@ version = "0.1.0"
 dependencies = [
  "aidoku",
  "aidoku-test",
- "hashbrown 0.17.1",
+ "serde",
+ "zaimanhua_template",
+]
+
+[[package]]
+name = "zaimanhua_template"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
  "md5",
  "serde",
- "serde_json",
+]
+
+[[package]]
+name = "zaimanhuanovel"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "serde",
+ "zaimanhua_template",
 ]
 
 [[package]]

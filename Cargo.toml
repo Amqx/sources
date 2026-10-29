@@ -63,6 +63,7 @@ pizzareader = { path = "templates/pizzareader" }
 tukutema = { path = "templates/tukutema" }
 vinetheme = { path = "templates/vinetheme" }
 wpcomics = { path = "templates/wpcomics" }
+zaimanhua_template = { path = "templates/zaimanhua" }
 
 [profile.dev]
 panic = "abort"

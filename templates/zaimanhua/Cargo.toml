@@ -1,0 +1,13 @@
+[package]
+name = "zaimanhua_template"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+aidoku = { workspace = true, features = ["json"] }
+md5.workspace = true
+serde = { workspace = true, features = ["derive", "alloc"] }
+
+[dev-dependencies]
+aidoku = { workspace = true, features = ["test"] }
+aidoku-test.workspace = true

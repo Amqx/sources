@@ -8,10 +8,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 aidoku = { workspace = true, features = ["json"] }
-hashbrown.workspace = true
-md5.workspace = true
 serde = { workspace = true, features = ["derive", "alloc"] }
-serde_json = { workspace = true, features = ["alloc"] }
+zaimanhua_template.workspace = true
 
 [dev-dependencies]
 aidoku = { workspace = true, features = ["test"] }
