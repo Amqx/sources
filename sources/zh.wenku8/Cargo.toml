@@ -1,0 +1,15 @@
+[package]
+name = "wenku8"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+aidoku = { workspace = true, features = ["helpers"] }
+encoding_rs.workspace = true
+
+[dev-dependencies]
+aidoku = { workspace = true, features = ["test"] }
+aidoku-test.workspace = true

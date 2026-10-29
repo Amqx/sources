@@ -25,6 +25,7 @@ cbc = "0.2.1"
 chinese-number = { version = "0.8.2", default-features = false, features = ["chinese-to-number"] }
 ctr = { version = "0.10.1", default-features = false }
 digest = { version = "0.11.3", default-features = false, features = ["alloc"] }
+encoding_rs = { version = "0.8.44", default-features = false, features = ["alloc"] }
 hashbrown = { version = "0.17.1", default-features = false, features = ["default-hasher"] }
 hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
 hmac = { version = "0.13.0", default-features = false }
