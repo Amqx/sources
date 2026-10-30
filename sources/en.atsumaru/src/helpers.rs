@@ -1,373 +1,260 @@
-use aidoku::{
-    ContentRating, FilterValue, MangaStatus, Result, Viewer,
-    alloc::{String, Vec, borrow::ToOwned, format, string::ToString},
-    bail,
-    helpers::uri::QueryParameters,
-    imports::{
-        defaults::defaults_get,
-        net::{Request, Response},
-    },
+use crate::{
+    api::{BASE_URL, CDN_URL},
+    models::{ChapterItem, Scanlator, SearchDocument},
+    settings::Keep,
 };
-use serde::de::DeserializeOwned;
+use aidoku::{
+    ContentRating, MangaStatus, Viewer,
+    alloc::{String, Vec, format},
+    imports::std::current_date,
+};
+use core::cmp::Ordering;
 
-pub const BASE_URL: &str = "https://atsu.moe";
+// Rating fallbacks for unrated titles.
+pub const HENTAI: &str = "10";
+pub const ADULT_GENRES: [&str; 2] = ["46", "41"];
+pub const NOVEL_PREFIX: &str = "novel/";
 
-/// Static files are served from a separate host. Requesting them from the main
-/// one only earns a permanent redirect here.
-const CDN_URL: &str = "https://cdn.atsu.moe";
-
-/// The manga types the website browses with. It always requests all of them.
-const TYPES: &str = "Manga,Manwha,Manhua,OEL";
-
-/// The amount of search results requested per page.
-pub const PER_PAGE: i32 = 40;
-
-/// Typesense sort fields, indexed by the position of the option in the sort
-/// filter. The first one is empty because "Relevance" is the search engine's
-/// own ordering, which is requested by leaving `sort_by` off entirely.
-const SORT_FIELDS: [&str; 7] = [
-    "",
-    "views",
-    "trending",
-    "dateAdded",
-    "released",
-    // the search index stores ratings under a different name than manga pages do
-    "mbRating",
-    "title",
+const SPOTLIGHT_GENRES: [&str; 15] = [
+    "Action",
+    "Romance",
+    "Fantasy",
+    "Psychological",
+    "Comedy",
+    "Martial Arts",
+    "Slice of Life",
+    "Adventure",
+    "Drama",
+    "Sci-Fi",
+    "Mystery",
+    "Historical",
+    "Supernatural",
+    "Thriller",
+    "Horror",
 ];
 
-/// Whether the user enabled adult mode. The website uses this as a switch
-/// between safe and +18 content rather than as an "include adult" toggle.
-pub fn adult_mode() -> bool {
-    defaults_get::<bool>("adultMode").unwrap_or(false)
+pub fn spotlight_genre() -> &'static str {
+    SPOTLIGHT_GENRES[(current_date() / 86_400).rem_euclid(15) as usize]
 }
 
-pub fn api_get(url: &str) -> Result<Request> {
-    Ok(Request::get(url)?
-        .header("Accept", "*/*")
-        .header("Referer", &format!("{BASE_URL}/"))
-        .header("Content-Type", "application/json"))
-}
-
-pub fn api_json<T: DeserializeOwned>(url: &str) -> Result<T> {
-    response_json(api_get(url)?.send()?)
-}
-
-/// Reads a json response, failing on error codes. The api answers those with a
-/// json body of its own, which would otherwise parse into an empty result and
-/// leave the user looking at a page that seems merely empty.
-pub fn response_json<T: DeserializeOwned>(response: Response) -> Result<T> {
-    if response.status_code() >= 400 {
-        bail!("Response Error: {}", response.status_code());
-    }
-    response.get_json_owned()
-}
-
-/// The listing that the website builds from a search sorted by trend, rather
-/// than serving it from an endpoint of its own.
-pub const TRENDING: &str = "trending";
-
-/// The url of one of the home page listings, which are paginated by offset.
-/// Trending is the exception, being a search.
-pub fn listing_url(listing: &str, page: i32) -> String {
-    if listing == TRENDING {
-        let sort = FilterValue::Sort {
-            id: "sort".into(),
-            index: SORT_FIELDS
-                .iter()
-                .position(|field| *field == TRENDING)
-                .unwrap_or(0) as i32,
-            ascending: false,
-        };
-        return search_url(None, page, &[sort]);
-    }
-    // the website ranks popularity by the day unless told otherwise
-    let timeframe = if listing == "popular" {
-        "&timeframe=daily"
+pub fn content_rating<S: AsRef<str>>(
+    is_adult: bool,
+    rating: Option<&str>,
+    genres: &[S],
+) -> ContentRating {
+    let tagged = |ids: &[&str]| genres.iter().any(|genre| ids.contains(&genre.as_ref()));
+    if is_adult
+        || tagged(&[HENTAI])
+        || tagged(&ADULT_GENRES)
+        || matches!(rating, Some("Erotica" | "Pornographic"))
+    {
+        ContentRating::NSFW
     } else {
-        ""
-    };
-    let adult = if adult_mode() { "&adult=1" } else { "" };
-    format!(
-        "{BASE_URL}/api/home2/{listing}?offset={}&limit={PER_PAGE}&types={TYPES}&mediums=Comic{timeframe}{adult}",
-        (page - 1) * PER_PAGE
-    )
-}
-
-/// The url of the Typesense search collection, with every filter applied.
-pub fn search_url(query: Option<&str>, page: i32, filters: &[FilterValue]) -> String {
-    let mut sort_index = 0usize;
-    let mut ascending = false;
-    let mut genres_included: &[String] = &[];
-    let mut genres_excluded: &[String] = &[];
-    let mut tags_included: &[String] = &[];
-    let mut tags_excluded: &[String] = &[];
-    let mut types: &[String] = &[];
-    let mut statuses: &[String] = &[];
-    let mut year = (None, None);
-    let mut chapter_count = (None, None);
-    let mut official_only = false;
-
-    for filter in filters {
-        match filter {
-            FilterValue::Sort {
-                index,
-                ascending: a,
-                ..
-            } => {
-                sort_index = usize::try_from(*index).unwrap_or(0);
-                ascending = *a;
-            }
-            FilterValue::MultiSelect {
-                id,
-                included,
-                excluded,
-            } => match id.as_str() {
-                "genre" => {
-                    genres_included = included;
-                    genres_excluded = excluded;
-                }
-                "tag" => {
-                    tags_included = included;
-                    tags_excluded = excluded;
-                }
-                "type" => types = included,
-                "status" => statuses = included,
-                _ => {}
-            },
-            FilterValue::Range { id, from, to } => match id.as_str() {
-                "year" => year = (*from, *to),
-                "chapters" => chapter_count = (*from, *to),
-                _ => {}
-            },
-            FilterValue::Check { id, value } if id == "official" => official_only = *value == 1,
-            _ => {}
+        match rating {
+            Some("Suggestive") => ContentRating::Suggestive,
+            Some("Safe") => ContentRating::Safe,
+            _ => ContentRating::Unknown,
         }
     }
-
-    let mut clauses: Vec<String> = Vec::new();
-    clauses.push("hidden:!=true".to_owned());
-
-    // Included values are separate clauses so that they're all required, while
-    // excluded values are a single "not any of" clause.
-    for id in genres_included {
-        clauses.push(format!("genreIds:=`{id}`"));
-    }
-    if !genres_excluded.is_empty() {
-        clauses.push(format!("genreIds:!=[{}]", quoted_list(genres_excluded)));
-    }
-    for id in tags_included {
-        clauses.push(format!("tagIds:=`{id}`"));
-    }
-    if !tags_excluded.is_empty() {
-        clauses.push(format!("tagIds:!=[{}]", quoted_list(tags_excluded)));
-    }
-    if !types.is_empty() {
-        clauses.push(format!("type:=[{}]", quoted_list(types)));
-    }
-    if !statuses.is_empty() {
-        clauses.push(format!("status:=[{}]", quoted_list(statuses)));
-    }
-    if let Some(from) = year.0 {
-        clauses.push(format!("releaseYear:>={}", from as i32));
-    }
-    if let Some(to) = year.1 {
-        clauses.push(format!("releaseYear:<={}", to as i32));
-    }
-    if let Some(from) = chapter_count.0 {
-        clauses.push(format!("chapterCount:>={}", from as i32));
-    }
-    if let Some(to) = chapter_count.1 {
-        clauses.push(format!("chapterCount:<={}", to as i32));
-    }
-    if !adult_mode() {
-        clauses.push("isAdult:=false".to_owned());
-    }
-    if official_only {
-        clauses.push("officialTranslation:=true".to_owned());
-    }
-    clauses.push(
-        "(mbContentRating:=[`Safe`,`Suggestive`,`Erotica`] || mbContentRating:!=*)".to_owned(),
-    );
-    // novels share the collection, but have no pages to read
-    clauses.push("medium:!=[`Novel`]".to_owned());
-    clauses.push("views:>0".to_owned());
-
-    let query = query.filter(|q| !q.is_empty());
-
-    let mut qs = QueryParameters::new();
-    qs.push("q", Some(query.unwrap_or("*")));
-    qs.push("filter_by", Some(&clauses.join(" && ")));
-
-    let sort_field = SORT_FIELDS[sort_index.min(SORT_FIELDS.len() - 1)];
-    if !sort_field.is_empty() {
-        let direction = if ascending { "asc" } else { "desc" };
-        qs.push("sort_by", Some(&format!("{sort_field}:{direction}")));
-    } else if query.is_none() {
-        // relevance is meaningless without a search term, so fall back to views
-        qs.push("sort_by", Some("views:desc"));
-    }
-
-    if query.is_some() {
-        qs.push("query_by", Some("title,englishTitle,otherNames,authors"));
-        qs.push("query_by_weights", Some("4,3,2,1"));
-        qs.push("num_typos", Some("4,3,2,1"));
-    }
-
-    qs.push("page", Some(&page.to_string()));
-    qs.push("per_page", Some(&PER_PAGE.to_string()));
-
-    format!("{BASE_URL}/collections/manga/documents/search?{qs}")
 }
 
-fn quoted_list(ids: &[String]) -> String {
-    ids.iter()
-        .map(|id| format!("`{id}`"))
-        .collect::<Vec<String>>()
-        .join(",")
+fn static_path(path: &str) -> &str {
+    let path = path.trim_start_matches('/');
+    path.strip_prefix("static/").unwrap_or(path)
 }
 
-/// Turns a path returned by the api into an absolute image url. Paths can come
-/// through as absolute urls, protocol relative urls, or as a path relative to
-/// the static file directory, with or without a leading slash.
-pub fn image_url(path: &str) -> String {
-    if path.starts_with("//") {
-        return force_https(&format!("https:{path}"));
-    }
-    if path.starts_with("http") {
-        return force_https(path);
-    }
-    let path = path.strip_prefix('/').unwrap_or(path);
-    let path = path.strip_prefix("static/").unwrap_or(path);
-    format!("{CDN_URL}/static/{path}")
-}
-
-/// Upgrades a url to https, also repairing the colon-less protocols that some
-/// entries are stored with.
-fn force_https(url: &str) -> String {
-    for prefix in ["http://", "https://", "http//", "https//"] {
-        if let Some(rest) = url.strip_prefix(prefix) {
-            return format!("https://{rest}");
-        }
-    }
-    url.to_owned()
-}
-
-pub fn parse_status(status: Option<&str>) -> MangaStatus {
-    match status.map(|s| s.trim().to_lowercase()).as_deref() {
-        Some("ongoing") => MangaStatus::Ongoing,
-        Some("completed") => MangaStatus::Completed,
-        Some("hiatus") => MangaStatus::Hiatus,
-        Some("canceled") | Some("cancelled") => MangaStatus::Cancelled,
-        _ => MangaStatus::Unknown,
+// Every cover size has a webp copy beside the avif one.
+pub fn cover_url(path: &str) -> String {
+    let path = static_path(path);
+    match path.strip_suffix(".avif") {
+        Some(stem) => format!("{CDN_URL}/{stem}.webp"),
+        None => format!("{CDN_URL}/{path}"),
     }
 }
 
-pub fn parse_viewer(kind: Option<&str>) -> Viewer {
-    match kind {
-        Some("Manga") => Viewer::RightToLeft,
-        Some("OEL") => Viewer::LeftToRight,
-        Some("Manwha") | Some("Manhua") => Viewer::Webtoon,
-        _ => Viewer::Unknown,
-    }
+pub fn page_url(path: &str) -> String {
+    format!("{CDN_URL}/{}", static_path(path))
 }
 
-/// The content rating of an entry. Only the adult flag is authoritative, so
-/// genres are used to tell the remaining entries apart.
-pub fn parse_content_rating(is_adult: bool, genres: &[String]) -> ContentRating {
-    if is_adult {
-        return ContentRating::NSFW;
-    }
-    let mut suggestive = false;
-    for genre in genres {
-        match genre.as_str() {
-            "Hentai" | "Adult" | "Smut" => return ContentRating::NSFW,
-            "Ecchi" | "Mature" | "Erotica" => suggestive = true,
-            _ => {}
-        }
-    }
-    if suggestive {
-        ContentRating::Suggestive
+// Lookup order differs from feed order.
+pub fn take_document(documents: &mut Vec<SearchDocument>, id: &str) -> Option<SearchDocument> {
+    let index = documents.iter().position(|document| document.id == id)?;
+    Some(documents.swap_remove(index))
+}
+
+pub fn allows(values: &[String], value: &str) -> bool {
+    values.iter().any(|allowed| allowed == value)
+}
+
+pub fn is_novel(medium: Option<&str>) -> bool {
+    medium == Some("Novel")
+}
+
+pub fn manga_url(id: &str, novel: bool) -> String {
+    let kind = if novel { "novel" } else { "manga" };
+    format!("{BASE_URL}/{kind}/{id}")
+}
+
+pub fn chapter_url(manga_id: &str, chapter_id: &str, novel: bool) -> String {
+    let kind = if novel { "novel" } else { "read" };
+    format!("{BASE_URL}/{kind}/{manga_id}/{chapter_id}")
+}
+
+pub fn manga_key(id: String, novel: bool) -> String {
+    if novel {
+        format!("{NOVEL_PREFIX}{id}")
     } else {
-        ContentRating::Safe
+        id
     }
 }
 
-/// The rating string used by the api's `mbContentRating` field, which is only
-/// present on search results.
-pub fn parse_mb_content_rating(rating: Option<&str>) -> Option<ContentRating> {
-    match rating {
-        Some("Safe") => Some(ContentRating::Safe),
-        Some("Suggestive") => Some(ContentRating::Suggestive),
-        Some("Erotica") | Some("Pornographic") => Some(ContentRating::NSFW),
+pub fn manga_id(key: &str) -> &str {
+    key.strip_prefix(NOVEL_PREFIX).unwrap_or(key)
+}
+
+pub fn parse_link(url: &str) -> Option<(String, Option<String>)> {
+    let rest = url
+        .strip_prefix("https://")
+        .or_else(|| url.strip_prefix("http://"))?;
+    let (host, path) = rest.split_once('/')?;
+    if host != "atsu.moe" && host != "www.atsu.moe" {
+        return None;
+    }
+    let path = path.split(['?', '#']).next()?;
+    let mut parts = path.split('/').filter(|part| !part.is_empty());
+    match (parts.next()?, parts.next()?, parts.next()) {
+        ("manga", id, None) => Some((id.into(), None)),
+        (kind @ "novel", id, chapter) | (kind @ "read", id, chapter @ Some(_)) => Some((
+            manga_key(id.into(), kind == "novel"),
+            chapter.map(Into::into),
+        )),
         _ => None,
     }
 }
 
-/// The year of a unix timestamp in milliseconds, counted a year at a time. The
-/// input is clamped to years 1 through 9999 so that a nonsensical timestamp
-/// can't turn the walk into a hang.
-pub fn year_from_millis(millis: i64) -> i32 {
-    const MIN_MILLIS: i64 = -62_135_596_800_000; // 0001-01-01
-    const MAX_MILLIS: i64 = 253_402_300_799_000; // 9999-12-31
-
-    const fn is_leap(year: i32) -> bool {
-        year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
-    }
-
-    let mut days = millis.clamp(MIN_MILLIS, MAX_MILLIS).div_euclid(86_400_000);
-    let mut year = 1970;
-    while days < 0 {
-        year -= 1;
-        days += if is_leap(year) { 366 } else { 365 };
-    }
-    loop {
-        let length = if is_leap(year) { 366 } else { 365 };
-        if days < length {
-            return year;
-        }
-        days -= length;
-        year += 1;
-    }
-}
-
-/// Formats a chapter number the way the website writes it in titles, so that
-/// redundant chapter titles can be recognized.
-fn number_string(number: f32) -> String {
-    let whole = number as i64;
-    if whole as f32 == number {
-        format!("{whole}")
+pub fn display_title(title: String, medium: Option<&str>, label_novels: bool) -> String {
+    if label_novels && is_novel(medium) {
+        format!("{title} (Novel)")
     } else {
-        format!("{number}")
+        title
     }
 }
 
-/// Drops chapter titles that only repeat the chapter number, since Aidoku
-/// already displays it.
-pub fn clean_chapter_title(title: Option<String>, number: Option<f32>) -> Option<String> {
-    let title = title?;
+pub fn viewer(kind: Option<&str>, medium: Option<&str>) -> Viewer {
+    if is_novel(medium) {
+        return Viewer::Unknown;
+    }
+    match kind {
+        Some("Manga") => Viewer::RightToLeft,
+        Some("Manwha" | "Manhua") => Viewer::Webtoon,
+        _ => Viewer::Unknown,
+    }
+}
+
+pub fn manga_status(status: Option<&str>) -> MangaStatus {
+    match status.map(str::to_ascii_lowercase).as_deref() {
+        Some("ongoing") => MangaStatus::Ongoing,
+        Some("completed") => MangaStatus::Completed,
+        Some("hiatus") => MangaStatus::Hiatus,
+        Some("canceled" | "cancelled") => MangaStatus::Cancelled,
+        _ => MangaStatus::Unknown,
+    }
+}
+
+pub fn chapter_title(title: &str, number: Option<f32>) -> Option<String> {
     let trimmed = title.trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-    if let Some(number) = number {
-        let number = number_string(number);
-        let lowercase = trimmed.to_lowercase();
-        let redundant = [
-            number.clone(),
-            format!("chapter {number}"),
-            format!("ch {number}"),
-            format!("ch. {number}"),
-            format!("episode {number}"),
-        ]
-        .contains(&lowercase);
-        if redundant {
-            return None;
+    if number.is_some() {
+        let lower = trimmed.to_ascii_lowercase();
+        for prefix in ["chapter", "episode", "ch.", "ep."] {
+            if !lower.starts_with(prefix) {
+                continue;
+            }
+            let rest = trimmed[prefix.len()..].trim_start();
+            let after = rest.trim_start_matches(|c: char| c.is_ascii_digit() || c == '.');
+            if after.len() == rest.len() {
+                break;
+            }
+            let name = after.trim_start_matches([' ', '-', ':', '–', '—']).trim();
+            return Some(name.into()).filter(|name: &String| !name.is_empty());
         }
     }
-    if trimmed.len() == title.len() {
-        Some(title)
+    Some(trimmed.into()).filter(|title: &String| !title.is_empty())
+}
+
+pub fn arrange_chapters(
+    mut chapters: Vec<ChapterItem>,
+    scanlators: &[Scanlator],
+    excluded: &[String],
+    preferred: &[String],
+    keep: Option<Keep>,
+) -> Vec<ChapterItem> {
+    if !excluded.is_empty() {
+        chapters.retain(|chapter| {
+            chapter
+                .scanlator(scanlators)
+                .is_none_or(|group| !excluded.contains(&group.name.to_lowercase()))
+        });
+    }
+    // The site lists chapters newest first, so only deduplicating needs a sort.
+    let Some(keep) = keep else {
+        return chapters;
+    };
+    // Uploads without a scored group rank last.
+    let score = |chapter: &ChapterItem| {
+        chapter
+            .scanlator(scanlators)
+            .map_or(i32::MIN, |group| group.score)
+    };
+    let priority = |chapter: &ChapterItem| {
+        chapter
+            .scanlator(scanlators)
+            .and_then(|group| {
+                preferred.iter().position(|name| {
+                    name.chars()
+                        .eq(group.name.chars().flat_map(char::to_lowercase))
+                })
+            })
+            .unwrap_or(usize::MAX)
+    };
+    chapters.sort_by(|a, b| {
+        let by_number = match (a.number, b.number) {
+            (Some(a), Some(b)) => b.partial_cmp(&a).unwrap_or(Ordering::Equal),
+            (Some(_), None) => Ordering::Less,
+            (None, Some(_)) => Ordering::Greater,
+            (None, None) => Ordering::Equal,
+        };
+        let by_keep = match keep {
+            Keep::HighestRated => score(b).cmp(&score(a)),
+            Keep::MostPages => b.page_count.cmp(&a.page_count),
+            Keep::Newest => Ordering::Equal,
+        };
+        by_number
+            .then_with(|| priority(a).cmp(&priority(b)))
+            .then(by_keep)
+            .then(b.created_at.cmp(&a.created_at))
+            .then_with(|| a.id.cmp(&b.id))
+    });
+    let mut selected = None;
+    let mut group = None;
+    chapters.retain(|chapter| {
+        let Some(number) = chapter.number else {
+            return true;
+        };
+        if selected == Some(number) {
+            chapter.scanlation_manga_id == group
+        } else {
+            selected = Some(number);
+            group = chapter.scanlation_manga_id.clone();
+            true
+        }
+    });
+    chapters
+}
+
+pub fn feed_allows(kind: Option<&str>, medium: Option<&str>, types: &[String]) -> bool {
+    if is_novel(medium) {
+        allows(types, "Novel")
     } else {
-        Some(trimmed.to_owned())
+        kind.is_some_and(|kind| allows(types, kind))
     }
 }

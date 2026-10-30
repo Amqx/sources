@@ -1,58 +1,102 @@
+use crate::helpers::{
+    chapter_title, chapter_url, content_rating, cover_url, display_title, is_novel, manga_key,
+    manga_status, manga_url, viewer,
+};
 use aidoku::{
-    Chapter, ContentRating, Manga,
-    alloc::{String, Vec, borrow::ToOwned, format},
-    imports::std::parse_date,
+    Chapter, ContentRating, Manga, MangaPageResult,
+    alloc::{String, Vec, vec},
 };
 use serde::Deserialize;
 
-use crate::helpers::*;
-
-// ── Listings ────────────────────────────────────────────────────────────────
-
+// Only search errors have a message field.
 #[derive(Deserialize)]
-pub struct ListingResponse {
-    #[serde(default)]
-    pub items: Vec<ListingItem>,
+pub struct ErrorResponse {
+    pub message: String,
 }
 
-/// An entry as returned by the infinite scroll listing endpoints.
 #[derive(Deserialize)]
-pub struct ListingItem {
+pub struct FeedResponse {
+    pub items: Vec<FeedItem>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FeedItem {
     pub id: String,
-    pub title: String,
-    pub image: Option<String>,
-    #[serde(rename = "isAdult")]
-    pub is_adult: Option<bool>,
+    title: String,
+    image: Option<String>,
+    medium_image: Option<String>,
+    large_image: Option<String>,
+    #[serde(default)]
+    is_adult: bool,
     #[serde(rename = "type")]
     pub kind: Option<String>,
+    pub medium: Option<String>,
 }
 
-impl From<ListingItem> for Manga {
-    fn from(item: ListingItem) -> Self {
+impl FeedItem {
+    pub fn into_manga(self, label_novels: bool) -> Manga {
         Manga {
-            url: Some(format!("{BASE_URL}/manga/{}", item.id)),
-            key: item.id,
-            title: item.title,
-            cover: item.image.as_deref().map(image_url),
-            content_rating: if item.is_adult.unwrap_or(false) {
+            title: display_title(self.title, self.medium.as_deref(), label_novels),
+            cover: self
+                .medium_image
+                .or(self.image)
+                .map(|path| cover_url(&path)),
+            // Feeds omit finer content ratings.
+            content_rating: if self.is_adult {
                 ContentRating::NSFW
             } else {
-                ContentRating::Unknown
+                ContentRating::default()
             },
-            viewer: parse_viewer(item.kind.as_deref()),
+            key: manga_key(self.id, is_novel(self.medium.as_deref())),
             ..Default::default()
+        }
+    }
+
+    pub fn into_featured(mut self, label_novels: bool, document: Option<SearchDocument>) -> Manga {
+        let viewer = viewer(self.kind.as_deref(), self.medium.as_deref());
+        self.medium_image = self.large_image.take().or(self.medium_image);
+        let manga = self.into_manga(label_novels);
+        let Some(mut document) = document else {
+            return Manga { viewer, ..manga };
+        };
+        document.tags.sort();
+        Manga {
+            content_rating: document.content_rating(),
+            status: manga_status(document.status.as_deref()),
+            description: document.synopsis.filter(|synopsis| !synopsis.is_empty()),
+            authors: Some(document.authors).filter(|authors| !authors.is_empty()),
+            tags: Some(document.tags).filter(|tags| !tags.is_empty()),
+            viewer,
+            ..manga
         }
     }
 }
 
-// ── Search ──────────────────────────────────────────────────────────────────
-
 #[derive(Deserialize)]
 pub struct SearchResponse {
-    #[serde(default)]
-    pub found: i32,
-    #[serde(default)]
+    found: i32,
+    page: i32,
     pub hits: Vec<SearchHit>,
+    request_params: RequestParams,
+}
+
+#[derive(Deserialize)]
+struct RequestParams {
+    per_page: i32,
+}
+
+impl SearchResponse {
+    pub fn into_page(self, label_novels: bool) -> MangaPageResult {
+        MangaPageResult {
+            has_next_page: self.page * self.request_params.per_page < self.found,
+            entries: self
+                .hits
+                .into_iter()
+                .map(|hit| hit.document.into_manga(label_novels))
+                .collect(),
+        }
+    }
 }
 
 #[derive(Deserialize)]
@@ -60,180 +104,189 @@ pub struct SearchHit {
     pub document: SearchDocument,
 }
 
-/// A search index document. It holds most of what a manga page does, so search
-/// results are filled in as far as they go.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SearchDocument {
     pub id: String,
-    pub title: String,
-    pub poster: Option<String>,
-    pub synopsis: Option<String>,
     #[serde(default)]
-    pub authors: Vec<String>,
+    title: String,
+    poster: Option<String>,
+    poster_medium: Option<String>,
+    synopsis: Option<String>,
     #[serde(default)]
-    pub tags: Vec<String>,
-    pub status: Option<String>,
-    #[serde(rename = "type")]
-    pub kind: Option<String>,
-    pub is_adult: Option<bool>,
-    pub mb_content_rating: Option<String>,
+    authors: Vec<String>,
+    #[serde(default)]
+    tags: Vec<String>, // Genre names.
+    #[serde(default)]
+    is_adult: bool,
+    mb_content_rating: Option<String>,
+    #[serde(default)]
+    genre_ids: Vec<String>,
+    medium: Option<String>,
+    status: Option<String>,
 }
 
-impl From<SearchDocument> for Manga {
-    fn from(document: SearchDocument) -> Self {
-        let is_adult = document.is_adult.unwrap_or(false);
-        let viewer = parse_viewer(document.kind.as_deref());
+impl SearchDocument {
+    pub fn content_rating(&self) -> ContentRating {
+        content_rating(
+            self.is_adult,
+            self.mb_content_rating.as_deref(),
+            &self.genre_ids,
+        )
+    }
 
-        let mut tags = document.tags;
-        let content_rating = parse_mb_content_rating(document.mb_content_rating.as_deref())
-            .filter(|_| !is_adult)
-            .unwrap_or_else(|| parse_content_rating(is_adult, &tags));
-        if let Some(kind) = document.kind {
-            tags.insert(0, kind);
-        }
-
+    pub fn into_manga(self, label_novels: bool) -> Manga {
+        let content_rating = self.content_rating();
         Manga {
-            url: Some(format!("{BASE_URL}/manga/{}", document.id)),
-            key: document.id,
-            title: document.title,
-            cover: document.poster.as_deref().map(image_url),
-            description: document.synopsis.filter(|s| !s.trim().is_empty()),
-            authors: (!document.authors.is_empty()).then_some(document.authors),
-            tags: (!tags.is_empty()).then_some(tags),
-            status: parse_status(document.status.as_deref()),
+            title: display_title(self.title, self.medium.as_deref(), label_novels),
+            cover: self
+                .poster_medium
+                .or(self.poster)
+                .map(|path| cover_url(&path)),
+            status: manga_status(self.status.as_deref()),
             content_rating,
-            viewer,
+            key: manga_key(self.id, is_novel(self.medium.as_deref())),
             ..Default::default()
         }
     }
 }
 
-// ── Manga page ──────────────────────────────────────────────────────────────
-
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct MangaPageResponse {
-    pub manga_page: MangaPage,
+pub struct PageResponse {
+    // Unknown ids return null.
+    pub manga_page: Option<MangaPage>,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MangaPage {
-    pub title: String,
-    pub poster: Option<Poster>,
+    #[serde(flatten)]
+    pub info: MangaInfo,
     #[serde(default)]
-    pub authors: Vec<Author>,
-    pub synopsis: Option<String>,
+    pub chapters: Vec<ChapterItem>,
     #[serde(default)]
-    pub genres: Vec<NamedItem>,
-    pub released: Option<i64>,
-    pub status: Option<String>,
+    pub scanlators: Vec<Scanlator>,
+    #[serde(default)]
+    pub has_more_chapters: bool,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MangaInfo {
+    id: String,
+    title: String,
+    poster: Option<Poster>,
+    #[serde(default)]
+    authors: Vec<Person>,
+    synopsis: Option<String>,
+    #[serde(default)]
+    genres: Vec<Genre>,
+    #[serde(default)]
+    tags: Vec<Tag>,
+    status: Option<String>,
     #[serde(rename = "type")]
-    pub kind: Option<String>,
-    pub views: Option<String>,
+    kind: Option<String>,
+    pub medium: Option<String>,
     #[serde(default)]
-    pub other_names: Vec<String>,
-    pub avg_rating: Option<f64>,
-    pub is_adult: Option<bool>,
-    pub scanlators: Option<Vec<Scanlator>>,
-    pub chapters: Option<Vec<ChapterItem>>,
-    pub has_more_chapters: Option<bool>,
+    is_adult: bool,
 }
 
 #[derive(Deserialize)]
-pub struct Poster {
-    pub image: Option<String>,
+#[serde(rename_all = "camelCase")]
+struct Poster {
+    image: Option<String>,
+    large_image: Option<String>,
 }
 
 #[derive(Deserialize)]
-pub struct Author {
-    pub name: String,
+struct Person {
+    name: String,
     #[serde(rename = "type")]
-    pub kind: Option<String>,
+    role: Option<String>,
 }
 
 #[derive(Deserialize)]
-pub struct NamedItem {
-    pub name: String,
+struct Genre {
+    id: String,
+    name: String,
+}
+
+#[derive(Deserialize)]
+struct Tag {
+    name: String,
+    weight: Option<String>,
+}
+
+impl MangaInfo {
+    pub fn into_manga(self, label_novels: bool, rating: Option<SearchDocument>) -> Manga {
+        let novel = is_novel(self.medium.as_deref());
+        let content_rating = rating.map_or_else(
+            || {
+                let genres = self
+                    .genres
+                    .iter()
+                    .map(|genre| genre.id.as_str())
+                    .collect::<Vec<_>>();
+                content_rating(self.is_adult, None, &genres)
+            },
+            |document| document.content_rating(),
+        );
+        let (artists, authors): (Vec<_>, Vec<_>) = self
+            .authors
+            .into_iter()
+            .partition(|person| person.role.as_deref() == Some("Artist"));
+        let names = |people: Vec<Person>| {
+            Some(
+                people
+                    .into_iter()
+                    .map(|person| person.name)
+                    .collect::<Vec<_>>(),
+            )
+            .filter(|names| !names.is_empty())
+        };
+        let mut tags = self
+            .genres
+            .into_iter()
+            .map(|genre| genre.name)
+            .chain(
+                self.tags
+                    .into_iter()
+                    .filter(|tag| matches!(tag.weight.as_deref(), Some("Core" | "Defining")))
+                    .map(|tag| tag.name),
+            )
+            .collect::<Vec<_>>();
+        tags.sort();
+        Manga {
+            title: display_title(self.title, self.medium.as_deref(), label_novels),
+            cover: self
+                .poster
+                .and_then(|poster| poster.large_image.or(poster.image))
+                .map(|path| cover_url(&path)),
+            authors: names(authors),
+            artists: names(artists),
+            description: self.synopsis.filter(|synopsis| !synopsis.is_empty()),
+            url: Some(manga_url(&self.id, novel)),
+            tags: Some(tags).filter(|tags| !tags.is_empty()),
+            status: manga_status(self.status.as_deref()),
+            content_rating,
+            viewer: viewer(self.kind.as_deref(), self.medium.as_deref()),
+            key: manga_key(self.id, novel),
+            ..Default::default()
+        }
+    }
 }
 
 #[derive(Deserialize)]
 pub struct Scanlator {
-    pub id: String,
+    id: String,
     pub name: String,
+    #[serde(default)]
+    pub score: i32,
 }
-
-impl MangaPage {
-    /// Fills the details of a manga, leaving its key and chapters alone.
-    pub fn fill_details(self, manga: &mut Manga) {
-        manga.title = self.title;
-        // entries without a poster keep whatever cover they were listed with
-        if let Some(image) = self.poster.and_then(|poster| poster.image) {
-            manga.cover = Some(image_url(&image));
-        }
-        manga.url = Some(format!("{BASE_URL}/manga/{}", manga.key));
-        manga.status = parse_status(self.status.as_deref());
-        manga.viewer = parse_viewer(self.kind.as_deref());
-
-        let mut authors: Vec<String> = Vec::new();
-        let mut artists: Vec<String> = Vec::new();
-        for author in self.authors {
-            match author.kind.as_deref() {
-                Some("Artist") => artists.push(author.name),
-                Some("Author") | None => authors.push(author.name),
-                _ => {}
-            }
-        }
-        manga.authors = (!authors.is_empty()).then_some(authors);
-        manga.artists = (!artists.is_empty()).then_some(artists);
-
-        let mut tags: Vec<String> = Vec::with_capacity(self.genres.len() + 1);
-        if let Some(kind) = self.kind {
-            tags.push(kind);
-        }
-        tags.extend(self.genres.into_iter().map(|genre| genre.name));
-        manga.content_rating = parse_content_rating(self.is_adult.unwrap_or(false), &tags);
-        manga.tags = (!tags.is_empty()).then_some(tags);
-
-        // The website shows these stats next to the synopsis, and Aidoku has
-        // nowhere else to put them.
-        let mut stats: Vec<String> = Vec::new();
-        if let Some(rating) = self.avg_rating.filter(|rating| *rating > 0.0) {
-            stats.push(format!("Rating: {rating:.2}/10"));
-        }
-        if let Some(released) = self.released.filter(|released| *released > 0) {
-            stats.push(format!("Year: {}", year_from_millis(released)));
-        }
-        if let Some(views) = self.views {
-            stats.push(format!("Views: {views}"));
-        }
-
-        let mut sections: Vec<String> = Vec::new();
-        if !stats.is_empty() {
-            sections.push(stats.join("\n"));
-        }
-        if let Some(synopsis) = self.synopsis.filter(|s| !s.trim().is_empty()) {
-            sections.push(synopsis.trim().to_owned());
-        }
-        let other_names = self
-            .other_names
-            .iter()
-            .filter(|name| **name != manga.title)
-            .map(|name| format!("- {name}"))
-            .collect::<Vec<String>>();
-        if !other_names.is_empty() {
-            sections.push(format!("Alternative Names:\n{}", other_names.join("\n")));
-        }
-        manga.description = (!sections.is_empty()).then(|| sections.join("\n\n"));
-    }
-}
-
-// ── Chapters ────────────────────────────────────────────────────────────────
 
 #[derive(Deserialize)]
-pub struct AllChaptersResponse {
-    #[serde(default)]
+pub struct ChaptersResponse {
     pub chapters: Vec<ChapterItem>,
 }
 
@@ -241,66 +294,83 @@ pub struct AllChaptersResponse {
 #[serde(rename_all = "camelCase")]
 pub struct ChapterItem {
     pub id: String,
-    pub title: Option<String>,
-    pub number: Option<f32>,
     pub scanlation_manga_id: Option<String>,
-    pub created_at: Option<UploadDate>,
-}
-
-/// Upload dates are usually a unix timestamp in milliseconds, but older entries
-/// hold an ISO 8601 string instead.
-#[derive(Deserialize)]
-#[serde(untagged)]
-pub enum UploadDate {
-    Millis(i64),
-    Text(String),
-}
-
-impl UploadDate {
-    fn timestamp(&self) -> Option<i64> {
-        match self {
-            Self::Millis(millis) => Some(millis / 1000),
-            Self::Text(text) => parse_date(text, "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"),
-        }
-    }
+    title: Option<String>,
+    pub number: Option<f32>,
+    pub created_at: Option<i64>,
+    #[serde(default)]
+    pub page_count: i32,
 }
 
 impl ChapterItem {
-    pub fn into_chapter(self, manga_key: &str, scanlators: &[Scanlator]) -> Chapter {
-        let scanlator = self.scanlation_manga_id.and_then(|id| {
-            scanlators
-                .iter()
-                .find(|scanlator| scanlator.id == id)
-                .map(|scanlator| scanlator.name.clone())
-        });
+    pub fn scanlator<'a>(&self, scanlators: &'a [Scanlator]) -> Option<&'a Scanlator> {
+        let id = self.scanlation_manga_id.as_deref()?;
+        scanlators.iter().find(|scanlator| scanlator.id == id)
+    }
 
+    pub fn into_chapter(self, manga_id: &str, novel: bool, scanlators: &[Scanlator]) -> Chapter {
+        let scanlator = self
+            .scanlator(scanlators)
+            .map(|scanlator| scanlator.name.clone());
         Chapter {
-            url: Some(format!("{BASE_URL}/read/{manga_key}/{}", self.id)),
-            title: clean_chapter_title(self.title, self.number),
+            url: Some(chapter_url(manga_id, &self.id, novel)),
+            title: self
+                .title
+                .as_deref()
+                .and_then(|title| chapter_title(title, self.number)),
             chapter_number: self.number,
-            date_uploaded: self.created_at.as_ref().and_then(UploadDate::timestamp),
-            scanlators: scanlator.map(|scanlator| Vec::from([scanlator])),
+            date_uploaded: self.created_at.map(|ms| ms / 1000),
+            scanlators: scanlator.map(|name| vec![name]),
             key: self.id,
             ..Default::default()
         }
     }
 }
 
-// ── Pages ───────────────────────────────────────────────────────────────────
-
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ReadChapterResponse {
+pub struct ReadResponse {
     pub read_chapter: ReadChapter,
 }
 
 #[derive(Deserialize)]
 pub struct ReadChapter {
-    #[serde(default)]
     pub pages: Vec<PageItem>,
 }
 
 #[derive(Deserialize)]
 pub struct PageItem {
     pub image: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NovelResponse {
+    pub read_novel_chapter: NovelChapter,
+}
+
+#[derive(Deserialize)]
+pub struct NovelChapter {
+    pub paragraphs: Vec<String>,
+}
+
+#[derive(Deserialize)]
+pub struct AvailableFilters {
+    pub genres: Vec<GenreOption>,
+    pub tags: Vec<TagOption>,
+}
+
+#[derive(Deserialize)]
+pub struct GenreOption {
+    pub id: String,
+    pub name: String,
+}
+
+#[derive(Deserialize)]
+pub struct TagOption {
+    pub id: String,
+    pub name: String,
+    pub group: String,
+    #[serde(default)]
+    pub adult: bool,
 }
