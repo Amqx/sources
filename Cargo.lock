@@ -375,7 +375,6 @@ version = "0.1.0"
 dependencies = [
  "aidoku",
  "aidoku-test",
- "regex",
  "serde",
  "serde_json",
 ]
