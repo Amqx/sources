@@ -199,8 +199,8 @@
 		"type": "select",
 		"id": "type",
 		"title": "Type",
-		"options": ["All", "Manga", "Manhwa", "Manhua", "Comic", "Novel"],
-		"ids": ["", "manga", "manhwa", "manhua", "comic", "novel"]
+		"options": ["All", "Manga", "Manhwa", "Manhua", "Comic"],
+		"ids": ["", "manga", "manhwa", "manhua", "comic"]
 	},
 	{
 		"type": "sort",

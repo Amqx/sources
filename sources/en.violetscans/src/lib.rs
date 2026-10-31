@@ -13,11 +13,16 @@ use aidoku::{
     prelude::*,
 };
 
-const BASE_URL: &str = "https://violetscans.org";
-const OLD_BASE_URL: &str = "https://violetscans.com";
+const BASE_URL: &str = "https://violetmanga.com";
+const OLD_BASE_URLS: [&str; 2] = ["https://violetscans.org", "https://violetscans.com"];
 const MANGA_PATH: &str = "/comics";
 
 struct VioletScans;
+
+fn strip_base_url(url: &str) -> Option<&str> {
+    url.strip_prefix(BASE_URL)
+        .or_else(|| OLD_BASE_URLS.iter().find_map(|base| url.strip_prefix(base)))
+}
 
 fn img_attr(el: &Element) -> Option<String> {
     el.attr("abs:data-lazy-src")
@@ -26,10 +31,7 @@ fn img_attr(el: &Element) -> Option<String> {
 }
 
 fn key_from_url(url: &str) -> String {
-    url.strip_prefix(BASE_URL)
-        .or_else(|| url.strip_prefix(OLD_BASE_URL))
-        .unwrap_or(url)
-        .into()
+    strip_base_url(url).unwrap_or(url).into()
 }
 
 fn url_from_key(key: &str) -> String {
@@ -169,7 +171,7 @@ impl Source for VioletScans {
         let html = Request::get(&url)?.html()?;
 
         let entries: Vec<Manga> = html
-            .select(".listupd .bsx, .utao .uta .imgu")
+            .select(".listupd .bsx:not(:has(.novelabel)), .utao .uta .imgu:not(:has(.novelabel))")
             .map(|els| {
                 els.filter_map(|el| {
                     let link = el.select_first("a")?;
@@ -370,10 +372,7 @@ impl ImageRequestProvider for VioletScans {
 
 impl DeepLinkHandler for VioletScans {
     fn handle_deep_link(&self, url: String) -> Result<Option<DeepLinkResult>> {
-        let Some(path) = url
-            .strip_prefix(BASE_URL)
-            .or_else(|| url.strip_prefix(OLD_BASE_URL))
-        else {
+        let Some(path) = strip_base_url(&url) else {
             return Ok(None);
         };
         if path.starts_with(MANGA_PATH) {
@@ -385,3 +384,23 @@ impl DeepLinkHandler for VioletScans {
 }
 
 register_source!(VioletScans, ImageRequestProvider, DeepLinkHandler);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use aidoku_test::aidoku_test;
+
+    #[aidoku_test]
+    fn keys_are_normalized_across_domains() {
+        let expected = "/comics/series/";
+        for key in [
+            "/comics/series/",
+            "https://violetmanga.com/comics/series/",
+            "https://violetscans.org/comics/series/",
+            "https://violetscans.com/comics/series/",
+        ] {
+            assert_eq!(key_from_url(key), expected);
+            assert_eq!(url_from_key(key), "https://violetmanga.com/comics/series/");
+        }
+    }
+}
