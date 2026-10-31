@@ -99,6 +99,11 @@ pub fn list_url(
     filters: &[FilterValue],
 ) -> String {
     let mut qs = QueryParameters::new();
+    // Novels and comics share one catalogue route, which lists comics unless
+    // asked for novels; /api/novels only has per-novel routes under it now.
+    if content_type == ContentType::Novel {
+        qs.push("type", Some("novel"));
+    }
     qs.push("sort", Some(sort));
     qs.push("limit", Some(&limit.to_string()));
     qs.push("offset", Some(&offset.to_string()));
@@ -121,7 +126,7 @@ pub fn list_url(
             }
         }
     }
-    format!("{BASE_URL}{}?{qs}", content_type.api_base())
+    format!("{BASE_URL}/api/series?{qs}")
 }
 
 pub fn has_next(len: usize, total: u32, offset: u32, limit: u32) -> bool {
@@ -533,6 +538,17 @@ mod tests {
         assert!(url.contains("genre=fantasy"));
         assert!(url.contains("genre_exclude=mature"));
         assert!(url.contains("genre_exclude=yuri"));
+    }
+
+    #[aidoku_test]
+    fn list_url_uses_unified_catalogue_route() {
+        let novels = list_url(ContentType::Novel, "popular", 60, 0, None, &[]);
+        assert!(novels.starts_with("https://chikari.moe/api/series?"));
+        assert!(novels.contains("type=novel"));
+
+        let series = list_url(ContentType::Series, "popular", 60, 0, None, &[]);
+        assert!(series.starts_with("https://chikari.moe/api/series?"));
+        assert!(!series.contains("type="));
     }
 
     #[aidoku_test]
