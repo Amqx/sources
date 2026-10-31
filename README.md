@@ -7,11 +7,12 @@ This repository hosts sources from upstream as well as a few of my own. See upst
 
 I will occasionally sync up with upstream's latest changes. The following sources were added by me:
 
+- [MangaKatana](https://mangakatana.com)
 - [MangaPill](https://mangapill.com)
 - [Violet Scans](https://violetscans.com)
 - [MangaBall](https://mangaball.net)
-- [Onisaga](https://onisaga.com)
-- [Projectsuki](https://projectsuki.com)
+- [OniSaga](https://onisaga.com)
+- [Project Suki](https://projectsuki.com)
 
 ## Stability
 
