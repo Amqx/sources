@@ -1340,6 +1340,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "mangakio"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "mangak",
+]
+
+[[package]]
 name = "mangalib"
 version = "0.1.0"
 dependencies = [
