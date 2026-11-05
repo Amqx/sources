@@ -2226,6 +2226,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "sumidoku"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "sushiscan"
 version = "0.1.0"
 dependencies = [
