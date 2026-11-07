@@ -2012,6 +2012,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rokaricomics"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "mangathemesia",
+]
+
+[[package]]
 name = "rumanhua"
 version = "0.1.0"
 dependencies = [
