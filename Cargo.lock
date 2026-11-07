@@ -1057,6 +1057,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "kingofshojo"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "mangathemesia",
+]
+
+[[package]]
 name = "komiic"
 version = "0.1.0"
 dependencies = [
