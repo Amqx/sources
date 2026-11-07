@@ -1387,6 +1387,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mangaoni"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "base64",
+ "serde_json",
+]
+
+[[package]]
 name = "mangapill"
 version = "0.1.0"
 dependencies = [

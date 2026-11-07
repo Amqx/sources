@@ -1,0 +1,16 @@
+[package]
+name = "mangaoni"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+aidoku = { workspace = true, features = ["json"] }
+base64.workspace = true
+serde_json = { workspace = true, features = ["alloc"] }
+
+[dev-dependencies]
+aidoku = { workspace = true, features = ["test", "json"] }
+aidoku-test.workspace = true
