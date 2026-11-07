@@ -1679,6 +1679,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "novelarchive"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "serde",
+]
+
+[[package]]
 name = "novelbuddy"
 version = "0.1.0"
 dependencies = [
