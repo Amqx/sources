@@ -1066,6 +1066,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "kks101"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "regex",
+ "spin 0.12.3",
+]
+
+[[package]]
 name = "komiic"
 version = "0.1.0"
 dependencies = [
