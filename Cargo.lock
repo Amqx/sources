@@ -1112,6 +1112,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "lagoonscans"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "mangathemesia",
+]
+
+[[package]]
 name = "lanraragi"
 version = "0.1.0"
 dependencies = [
