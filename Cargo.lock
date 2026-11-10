@@ -1576,6 +1576,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "manhwaweb"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "serde",
+]
+
+[[package]]
 name = "manhwax"
 version = "0.1.0"
 dependencies = [

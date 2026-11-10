@@ -1,0 +1,21 @@
+{
+	"info": {
+		"id": "es.manhwaweb",
+		"name": "ManhwaWeb",
+		"version": 1,
+		"url": "https://manhwaweb.com",
+		"contentRating": 2,
+		"languages": ["es"],
+		"minAppVersion": "0.9"
+	},
+	"listings": [
+		{
+			"id": "Popular",
+			"name": "Lo más Leido"
+		},
+		{
+			"id": "Latest",
+			"name": "Nuevos Capitulos"
+		}
+	]
+}
