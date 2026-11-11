@@ -668,6 +668,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "evascans"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "mangathemesia",
+]
+
+[[package]]
 name = "ezmanga"
 version = "0.1.0"
 dependencies = [
@@ -1202,6 +1211,15 @@ dependencies = [
  "md-5",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "madarascans"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "mangathemesia",
 ]
 
 [[package]]
@@ -1923,6 +1941,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ragescans"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "mangathemesia",
+]
+
+[[package]]
 name = "ranobelib"
 version = "0.1.0"
 dependencies = [
@@ -2387,6 +2414,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.8",
+]
+
+[[package]]
+name = "thunderscans"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "mangathemesia",
 ]
 
 [[package]]

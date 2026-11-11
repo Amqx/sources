@@ -2,7 +2,7 @@
 	"info": {
 		"id": "id.komikucom",
 		"name": "Komiku.com",
-		"version": 5,
+		"version": 6,
 		"url": "https://01.komiku.asia",
 		"contentRating": 1,
 		"languages": ["id"],

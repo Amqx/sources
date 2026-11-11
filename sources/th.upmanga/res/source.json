@@ -2,7 +2,7 @@
 	"info": {
 		"id": "th.upmanga",
 		"name": "Up-Manga",
-		"version": 1,
+		"version": 2,
 		"url": "https://www.up-manga.com",
 		"contentRating": 1,
 		"languages": ["th"],

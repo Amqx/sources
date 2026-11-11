@@ -2,7 +2,7 @@
 	"info": {
 		"id": "en.athreascans",
 		"name": "Athrea Scans",
-		"version": 1,
+		"version": 2,
 		"url": "https://athreascans.com",
 		"contentRating": 2,
 		"languages": ["en"],
