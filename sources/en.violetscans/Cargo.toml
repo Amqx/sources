@@ -8,7 +8,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 aidoku.workspace = true
-serde_json = { workspace = true, features = ["alloc"] }
+mangathemesia.workspace = true
 
 [dev-dependencies]
 aidoku = { workspace = true, features = ["test"] }

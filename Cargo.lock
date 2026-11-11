@@ -2660,7 +2660,7 @@ version = "0.1.0"
 dependencies = [
  "aidoku",
  "aidoku-test",
- "serde_json",
+ "mangathemesia",
 ]
 
 [[package]]

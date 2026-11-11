@@ -1,12 +1,12 @@
 {
-    "info": {
-        "id": "en.violetscans",
-        "name": "Violet Scans",
-        "altNames": ["Shojo Scans"],
-        "version": 3,
-        "urls": ["https://violetmanga.com", "https://violetscans.org", "https://violetscans.com"],
-        "minAppVersion": "0.9",
-        "contentRating": 0,
-        "languages": ["en"]
-    }
+	"info": {
+		"id": "en.violetscans",
+		"name": "Violet Scans",
+		"altNames": ["Shojo Scans"],
+		"version": 4,
+		"urls": ["https://violetmanga.com", "https://violetscans.org", "https://violetscans.com"],
+		"minAppVersion": "0.9",
+		"contentRating": 0,
+		"languages": ["en"]
+	}
 }
