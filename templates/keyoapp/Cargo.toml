@@ -1,0 +1,13 @@
+[package]
+name = "keyoapp"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+aidoku = { workspace = true, features = ["json"] }
+base64 = { workspace = true, features = ["alloc"] }
+serde = { workspace = true, features = ["derive", "alloc"] }
+
+[dev-dependencies]
+aidoku = { workspace = true, features = ["test"] }
+aidoku-test.workspace = true

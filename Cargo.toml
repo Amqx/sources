@@ -48,6 +48,7 @@ ezmanhwa = { path = "templates/ezmanhwa" }
 gigaviewer = { path = "templates/gigaviewer" }
 guya = { path = "templates/guya" }
 iken = { path = "templates/iken" }
+keyoapp = { path = "templates/keyoapp" }
 libgroup = { path = "templates/libgroup" }
 liliana = { path = "templates/liliana" }
 madara = { path = "templates/madara" }

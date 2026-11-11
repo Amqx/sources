@@ -1,0 +1,15 @@
+[package]
+name = "kaizenscan"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+aidoku.workspace = true
+keyoapp.workspace = true
+
+[dev-dependencies]
+aidoku = { workspace = true, features = ["test"] }
+aidoku-test.workspace = true
