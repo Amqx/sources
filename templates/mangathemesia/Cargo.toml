@@ -5,6 +5,7 @@ edition.workspace = true
 
 [dependencies]
 aidoku = { workspace = true, features = ["json"] }
+base64.workspace = true
 serde_json = { workspace = true, features = ["alloc"] }
 
 [dev-dependencies]
