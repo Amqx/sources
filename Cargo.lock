@@ -1368,7 +1368,6 @@ dependencies = [
  "aidoku",
  "aidoku-test",
  "serde",
- "serde_json",
 ]
 
 [[package]]

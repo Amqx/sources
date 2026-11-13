@@ -2,15 +2,55 @@
 	"info": {
 		"id": "multi.mangaball",
 		"name": "MangaBall",
-		"version": 1,
-		"url": "https://mangaball.net",
+		"version": 2,
+		"url": "https://mangaball.com",
 		"contentRating": 1,
 		"languages": [
-			"ar", "bg", "bn", "ca", "cs", "da", "de", "el", "en", "es", "fa",
-			"fi", "fr", "he", "hi", "hu", "id", "it", "is", "ja", "ko", "kn",
-			"ml", "ms", "ne", "nl", "no", "pl", "pt-BR", "ro", "ru", "sk",
-			"sl", "sq", "sr", "sv", "ta", "th", "tr", "uk", "vi", "zh"
+			"en",
+			"ar",
+			"bg",
+			"bn",
+			"ca",
+			"cs",
+			"da",
+			"de",
+			"el",
+			"es",
+			"fa",
+			"fi",
+			"fr",
+			"he",
+			"hi",
+			"hu",
+			"id",
+			"it",
+			"ja",
+			"ko",
+			"ms",
+			"nl",
+			"no",
+			"pl",
+			"pt",
+			"pt-BR",
+			"ro",
+			"ru",
+			"sv",
+			"th",
+			"tr",
+			"uk",
+			"vi",
+			"zh"
 		],
 		"minAppVersion": "0.9"
-	}
+	},
+	"listings": [
+		{
+			"id": "lastupdate",
+			"name": "Latest Updates"
+		},
+		{
+			"id": "created_at",
+			"name": "Recently Added"
+		}
+	]
 }
