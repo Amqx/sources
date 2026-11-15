@@ -951,6 +951,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
+name = "hijalascans"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "iken",
+]
+
+[[package]]
 name = "hitomi"
 version = "0.1.0"
 dependencies = [
@@ -968,6 +977,8 @@ dependencies = [
  "aidoku",
  "aidoku-test",
  "iken",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -2212,6 +2223,15 @@ name = "rustversion"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
+
+[[package]]
+name = "sanascans"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "iken",
+]
 
 [[package]]
 name = "scopeguard"

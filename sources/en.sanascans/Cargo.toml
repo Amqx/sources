@@ -1,0 +1,15 @@
+[package]
+name = "sanascans"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+aidoku.workspace = true
+iken.workspace = true
+
+[dev-dependencies]
+aidoku = { workspace = true, features = ["test"] }
+aidoku-test.workspace = true
