@@ -544,6 +544,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "divascans"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "vinetheme",
+]
+
+[[package]]
 name = "dm5"
 version = "0.1.0"
 dependencies = [
@@ -673,7 +682,7 @@ version = "0.1.0"
 dependencies = [
  "aidoku",
  "aidoku-test",
- "iken",
+ "serde",
 ]
 
 [[package]]
@@ -1119,6 +1128,15 @@ dependencies = [
  "aidoku",
  "aidoku-test",
  "mangathemesia",
+]
+
+[[package]]
+name = "kaynscans"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "vinetheme",
 ]
 
 [[package]]
@@ -2672,6 +2690,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7cc1186384beb7dd8eedea376413fd654937285ea6c9cfbb928dc3043ea4b606"
 dependencies = [
  "serde_core",
+]
+
+[[package]]
+name = "valirscans"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "vinetheme",
 ]
 
 [[package]]
