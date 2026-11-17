@@ -9,8 +9,6 @@ I will occasionally sync up with upstream's latest changes. The following source
 
 - [MangaKatana](https://mangakatana.com)
 - [MangaPill](https://mangapill.com)
-- [Violet Scans](https://violetscans.com)
-- [MangaBall](https://mangaball.net)
 - [OniSaga](https://onisaga.com)
 - [Project Suki](https://projectsuki.com)
 
