@@ -1775,6 +1775,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "mkissa"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "jiff",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "mmrcms"
 version = "0.1.0"
 dependencies = [
