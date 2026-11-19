@@ -56,6 +56,7 @@ madtheme = { path = "templates/madtheme" }
 mangabox = { path = "templates/mangabox" }
 mangak = { path = "templates/mangak" }
 mangareader = { path = "templates/mangareader" }
+mangataro = { path = "templates/mangataro" }
 mangathemesia = { path = "templates/mangathemesia" }
 mangaworld_template = { path = "templates/mangaworld" }
 mmrcms = { path = "templates/mmrcms" }

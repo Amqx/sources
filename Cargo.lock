@@ -1623,6 +1623,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "mangataro"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "jiff",
+ "md5",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "mangataro-source"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "mangataro",
+]
+
+[[package]]
 name = "mangathemesia"
 version = "0.1.0"
 dependencies = [
@@ -2211,6 +2232,15 @@ dependencies = [
  "aidoku",
  "aidoku-test",
  "mangathemesia",
+]
+
+[[package]]
+name = "roliascan"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "mangataro",
 ]
 
 [[package]]
