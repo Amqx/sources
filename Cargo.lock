@@ -1717,6 +1717,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "manhwa18net"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "manhwalist"
 version = "0.1.0"
 dependencies = [
