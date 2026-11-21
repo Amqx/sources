@@ -1,0 +1,22 @@
+[package]
+name = "yaoime"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+aidoku = { workspace = true, features = ["json"] }
+aes-gcm.workspace = true
+base64.workspace = true
+hmac.workspace = true
+regex = { workspace = true, features = ["unicode"] }
+serde = { workspace = true, features = ["derive", "alloc"] }
+serde_json = { workspace = true, features = ["alloc"] }
+sha2.workspace = true
+spin.workspace = true
+
+[dev-dependencies]
+aidoku = { workspace = true, features = ["test"] }
+aidoku-test.workspace = true
