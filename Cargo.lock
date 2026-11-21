@@ -2780,6 +2780,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "vymanga"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+]
+
+[[package]]
 name = "webtoon"
 version = "0.1.0"
 dependencies = [
