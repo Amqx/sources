@@ -2788,6 +2788,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "webnex"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "jiff",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "webtoon"
 version = "0.1.0"
 dependencies = [
