@@ -62,6 +62,7 @@ mangaworld_template = { path = "templates/mangaworld" }
 mmrcms = { path = "templates/mmrcms" }
 otakuovh = { path = "templates/otakuovh" }
 pizzareader = { path = "templates/pizzareader" }
+toonz = { path = "templates/toonz" }
 tukutema = { path = "templates/tukutema" }
 vinetheme = { path = "templates/vinetheme" }
 wpcomics = { path = "templates/wpcomics" }

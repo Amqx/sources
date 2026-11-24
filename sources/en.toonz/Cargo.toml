@@ -1,0 +1,15 @@
+[package]
+name = "toonzto"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+aidoku.workspace = true
+toonz.workspace = true
+
+[dev-dependencies]
+aidoku = { workspace = true, features = ["test"] }
+aidoku-test.workspace = true

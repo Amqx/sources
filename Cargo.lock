@@ -1242,6 +1242,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "lewdmanhwa"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "toonz",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.190"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2657,6 +2666,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "toonx"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "toonz",
+]
+
+[[package]]
+name = "toonz"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "toonzto"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "toonz",
+]
+
+[[package]]
 name = "tortugaceviri"
 version = "0.1.0"
 dependencies = [
@@ -2806,6 +2843,16 @@ dependencies = [
  "aidoku-test",
  "hashbrown 0.17.1",
  "serde",
+]
+
+[[package]]
+name = "webtoonclub"
+version = "0.1.0"
+dependencies = [
+ "aidoku",
+ "aidoku-test",
+ "serde",
+ "toonz",
 ]
 
 [[package]]
