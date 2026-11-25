@@ -152,7 +152,7 @@ impl FilterProcessor {
                         if let Some(t) = to {
                             let now = Timestamp::from_second(current_date())
                                 .unwrap()
-                                .to_zoned(TimeZone::UTC);
+                                .to_zoned_datetime(TimeZone::UTC);
                             let current_year = now.year() as f32;
 
                             let clamped_year = t.min(current_year);

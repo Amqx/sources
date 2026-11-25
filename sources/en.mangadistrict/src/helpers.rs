@@ -50,7 +50,7 @@ pub fn parse_date_to_timestamp(date_str: &str, now_str: Option<&str>) -> Option<
     if let Ok(date) = strtime::parse("%B %d, %Y", date_str).and_then(|tm| tm.to_date()) {
         return Some(
             date.at(0, 0, 0, 0)
-                .to_zoned(TimeZone::UTC)
+                .to_zoned_datetime(TimeZone::UTC)
                 .ok()?
                 .timestamp()
                 .as_second(),
@@ -63,7 +63,7 @@ pub fn parse_date_to_timestamp(date_str: &str, now_str: Option<&str>) -> Option<
         .ok()?
         .to_datetime()
         .ok()?
-        .to_zoned(TimeZone::UTC)
+        .to_zoned_datetime(TimeZone::UTC)
         .ok()?
         .timestamp();
     let parts: Vec<&str> = lowered.split_whitespace().collect();

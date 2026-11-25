@@ -1,4 +1,4 @@
-#![expect(clippy::unwrap_used, clippy::panic)]
+#![expect(clippy::panic)]
 
 use super::*;
 use aidoku::{

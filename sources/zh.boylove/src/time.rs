@@ -33,7 +33,7 @@ impl DayOfWeek {
         let now = current_date();
         let day_of_week = Timestamp::from_second(now)
             .map_err(|_| error!("Invalid timestamp: `{now}`"))?
-            .to_zoned(tz::TimeZone::fixed(tz::offset(8)))
+            .to_zoned_datetime(tz::TimeZone::fixed(tz::offset(8)))
             .weekday();
         Ok(Self(day_of_week))
     }

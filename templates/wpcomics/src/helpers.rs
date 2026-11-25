@@ -213,7 +213,7 @@ pub fn parse_relative_date(
 
     for fmt in absolute_formats {
         if let Ok(d) = Date::strptime(fmt, date)
-            && let Ok(dt) = d.at(0, 0, 0, 0).to_zoned(TimeZone::UTC)
+            && let Ok(dt) = d.at(0, 0, 0, 0).to_zoned_datetime(TimeZone::UTC)
         {
             return dt.timestamp().as_second();
         }

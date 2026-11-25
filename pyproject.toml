@@ -12,7 +12,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "curl-cffi>=0.16.3",
-    "pytest>=9.1.1",
-    "ty>=0.0.34",
+    "curl-cffi>=0.17.0",
+    "pytest>=9.2.0",
+    "ty>=0.0.109",
 ]

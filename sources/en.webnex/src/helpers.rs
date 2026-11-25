@@ -330,7 +330,8 @@ pub fn link_filters(link: &str) -> Result<Vec<FilterValue>> {
 }
 
 pub fn current_year() -> i32 {
-    Timestamp::from_second(current_date()).map_or(1970, |d| d.to_zoned(TimeZone::UTC).year().into())
+    Timestamp::from_second(current_date())
+        .map_or(1970, |d| d.to_zoned_datetime(TimeZone::UTC).year().into())
 }
 
 pub fn browse(

@@ -312,7 +312,7 @@ mod test {
                             .manga
                             .cover
                             .as_deref()
-                            .map_or(false, |img| img.starts_with("https:"))
+                            .is_some_and(|img| img.starts_with("https:"))
                     );
                     // chapter
                     assert!(!entry.chapter.url.is_none());
@@ -342,7 +342,7 @@ mod test {
                 manga
                     .cover
                     .as_deref()
-                    .map_or(false, |img| img.starts_with("https:"))
+                    .is_some_and(|img| img.starts_with("https:"))
             );
             assert!(!manga.artists.is_none());
             assert!(!manga.authors.is_none());
@@ -359,8 +359,6 @@ mod test {
                 }
                 None => panic!("Chapters should not be empty"),
             }
-
-            assert_eq!(1, 1);
         } else {
             panic!("Expected MangaChapterList");
         }

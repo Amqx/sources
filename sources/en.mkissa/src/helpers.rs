@@ -199,14 +199,19 @@ pub fn date_from_parts(parts: &DateParts) -> Option<i64> {
         0,
     )
     .ok()?;
-    Some(date.to_zoned(TimeZone::UTC).ok()?.timestamp().as_second())
+    Some(
+        date.to_zoned_datetime(TimeZone::UTC)
+            .ok()?
+            .timestamp()
+            .as_second(),
+    )
 }
 
 // The site names its season rows by calendar quarter: Winter is January to March
 pub fn season_and_year(timestamp: i64) -> (&'static str, i32) {
     let date = Timestamp::from_second(timestamp)
         .unwrap_or_default()
-        .to_zoned(TimeZone::UTC);
+        .to_zoned_datetime(TimeZone::UTC);
     let season = ["Winter", "Spring", "Summer", "Fall"][(date.month() - 1) as usize / 3];
     (season, i32::from(date.year()))
 }

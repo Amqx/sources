@@ -280,7 +280,7 @@ pub fn parse_timestamp(value: Option<&str>) -> Option<i64> {
         if let Ok(datetime) = DateTime::strptime(fmt, raw) {
             return Some(
                 datetime
-                    .to_zoned(TimeZone::UTC)
+                    .to_zoned_datetime(TimeZone::UTC)
                     .ok()?
                     .timestamp()
                     .as_second(),
@@ -290,7 +290,7 @@ pub fn parse_timestamp(value: Option<&str>) -> Option<i64> {
     if let Ok(date) = Date::strptime("%Y-%m-%d", raw.chars().take(10).collect::<String>()) {
         return Some(
             date.at(0, 0, 0, 0)
-                .to_zoned(TimeZone::UTC)
+                .to_zoned_datetime(TimeZone::UTC)
                 .ok()?
                 .timestamp()
                 .as_second(),
@@ -304,7 +304,7 @@ fn format_day(iso: &str) -> String {
         && let Ok(timestamp) = Timestamp::from_second(ts)
     {
         return timestamp
-            .to_zoned(TimeZone::UTC)
+            .to_zoned_datetime(TimeZone::UTC)
             .strftime("%d.%m.%Y")
             .to_string();
     }
